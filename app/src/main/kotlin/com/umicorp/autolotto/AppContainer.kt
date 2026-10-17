@@ -55,6 +55,7 @@ import java.time.ZonedDateTime
 class AppContainer(context: Context) {
 
     private val appContext: Context = context.applicationContext
+    val context: Context get() = appContext
 
     // === 공유 서비스 ===
     val store = SecureStore(appContext)
@@ -494,6 +495,42 @@ val Context.appContainer: AppContainer
 /** 5슬롯(null=미설정 / 빈=자동 / 6수=수동) → (자동 게임 수, 수동 번호 목록). 첫 구매 변환. */
 fun splitSlots(slots: List<List<Int>?>): Pair<Int, List<List<Int>>> =
     slots.count { it?.isEmpty() == true } to slots.filterNotNull().filter { it.isNotEmpty() }
+
+/** 5슬롯(null=미설정 / 빈=자동 / [-1]=스마트 / 6수=수동) → (자동 게임 수, 수동 번호 목록). 구매 시 3가지 스마트 전략 중 무작위 선택 동적 평가. */
+fun resolveSlotsForPurchase(
+    slots: List<List<Int>?>,
+    context: Context,
+): Pair<Int, List<List<Int>>> {
+    var autoCount = 0
+    val manualNumbers = mutableListOf<List<Int>>()
+
+    val strategies = listOf(
+        com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
+        com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS,
+        com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS,
+    )
+
+    val history = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(context)
+
+    for (s in slots) {
+        when {
+            s == null -> continue
+            s.isEmpty() -> autoCount++
+            s.size == 1 && s[0] == -1 -> {
+                val randomStrategy = strategies.random()
+                val analysis = if (randomStrategy.type == com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS) {
+                    com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, 50)
+                } else {
+                    com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyze(history)
+                }
+                val generated = com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(randomStrategy, analysis)
+                manualNumbers.add(generated)
+            }
+            else -> manualNumbers.add(s)
+        }
+    }
+    return autoCount to manualNumbers
+}
 
 /** manual_numbers JSON → 5슬롯(순수). malformed JSON은 throw — 호출부가 읽기 실패로 처리. */
 fun parseManualGames(json: String): List<List<Int>?> {

@@ -9,6 +9,7 @@ import com.umicorp.autolotto.data.mergePurchasesByRound
 import com.umicorp.autolotto.dhlottery.PurchaseResult
 import com.umicorp.autolotto.dhlottery.PurchaseService
 import com.umicorp.autolotto.TapSlotsOutcome
+import com.umicorp.autolotto.resolveSlotsForPurchase
 import com.umicorp.autolotto.splitSlots
 import com.umicorp.autolotto.tapSlotsOutcome
 import kotlinx.coroutines.Job
@@ -251,7 +252,7 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
                 TapSlotsOutcome.STORE_ERROR -> advanceFromIdle(InstantState.StoreError)
                 TapSlotsOutcome.NEEDS_SETUP -> advanceFromIdle(InstantState.NeedsSetup)
                 TapSlotsOutcome.PROCEED -> {
-                    val (auto, manual) = splitSlots(slots!!)
+                    val (auto, manual) = resolveSlotsForPurchase(slots!!, container.context)
                     advanceFromIdle(InstantState.ConfirmingFirst(round, auto, manual))
                 }
             }

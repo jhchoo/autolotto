@@ -110,13 +110,15 @@ import com.umicorp.autolotto.ui.vm.NumberViewModel.InstantState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+enum class SlotMode { MANUAL, AUTO, SMART }
+
 /**
  * 자동 구매 번호 설정 (원본 number_screen.dart 1:1) — Lucky Gloss 리디자인.
  *
- * 5슬롯 모델(null=미설정 / emptyList=자동 / [6수동번호]). 슬롯별 수동/자동 토글, 1~45 그리드(6개 제한),
+ * 5슬롯 모델(null=미설정 / emptyList=자동 / [-1]=스마트 / [6수동번호]). 슬롯별 수동/자동/스마트 토글, 1~45 그리드(6개 제한),
  * 게임 요약, 저장 → SecureStore manual_numbers(JSON 5슬롯). 인코딩은 AppContainer.saveManualGames와 동일.
  *
- * 시그니처 모션: 공 프레스/선택 스프링(LottoBall 내장) + 수동/자동 토글 인디케이터 bouncy 슬라이드.
+ * 시그니처 모션: 공 프레스/선택 스프링(LottoBall 내장) + 수동/자동/스마트 토글 인디케이터 bouncy 슬라이드.
  */
 @Composable
 fun NumberScreen(modifier: Modifier = Modifier) {
@@ -136,26 +138,6 @@ fun NumberScreen(modifier: Modifier = Modifier) {
     val games = remember { mutableStateListOf<List<Int>?>(null, null, null, null, null) }
     var initialized by remember { mutableStateOf(false) }
     var currentSlot by remember { mutableStateOf(0) }
-    var isAuto by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf(emptySet<Int>()) }
-    var saved by remember { mutableStateOf(true) }
-
-    // 저장된 5슬롯을 1회 하이드레이트(원본 initState._loadSavedGames). 실데이터 도착 시 잠근다.
-    // ponytail: 전부 미설정이면 둘 다 all-null이라 구분 불가 → 그 경우만 반복 복사(무해, 이미 all-null).
-    // 슬롯 진입 시 저장 상태를 편집 상태로 동기화 — 토글(자동/수동)과 수동 볼 선택 표시까지 (사용자 피드백).
-    fun syncEditorToSlot() {
-        isAuto = games[currentSlot]?.isEmpty() == true
-        selected = games[currentSlot]?.toSet() ?: emptySet()
-    }
-
-    LaunchedEffect(loaded) {
-        if (!initialized) {
-            for (i in 0 until 5) games[i] = loaded.getOrNull(i)
-            currentSlot = (0 until 5).firstOrNull { games[it] == null } ?: 0
-            syncEditorToSlot()
-            if (loaded.any { it != null }) initialized = true
-        }
-    }
 
     val configuredCount = games.count { it != null }
     val serverHealth by vm.serverHealth.collectAsState()
@@ -167,6 +149,43 @@ fun NumberScreen(modifier: Modifier = Modifier) {
 
     // 확정 버튼 팝(눌림 0.92 → 오버슛 복귀) — 확정이 접수됐다는 즉각 피드백 (사용자 피드백).
     val confirmPop = remember { Animatable(1f) }
+
+    var slotMode by remember { mutableStateOf(SlotMode.MANUAL) }
+    var selected by remember { mutableStateOf(emptySet<Int>()) }
+    var saved by remember { mutableStateOf(true) }
+
+    fun syncEditorToSlot() {
+        val current = games[currentSlot]
+        slotMode = when {
+            current?.isEmpty() == true -> SlotMode.AUTO
+            current?.size == 1 && current[0] == -1 -> SlotMode.SMART
+            else -> SlotMode.MANUAL
+        }
+        selected = if (slotMode == SlotMode.MANUAL) current?.toSet() ?: emptySet() else emptySet()
+    }
+
+    fun confirmSlot() {
+        if (slotMode == SlotMode.MANUAL && selected.size != 6) return
+        games[currentSlot] = when (slotMode) {
+            SlotMode.AUTO -> emptyList()
+            SlotMode.SMART -> listOf(-1)
+            SlotMode.MANUAL -> selected.sorted()
+        }
+        saved = false
+        if (currentSlot < 4) currentSlot++
+        syncEditorToSlot()
+        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+        scope.launch { confirmPop.snapTo(0.92f); confirmPop.animateTo(1f, MotionSpecs.bouncy()) }
+    }
+
+    LaunchedEffect(loaded) {
+        if (!initialized) {
+            for (i in 0 until 5) games[i] = loaded.getOrNull(i)
+            currentSlot = (0 until 5).firstOrNull { games[it] == null } ?: 0
+            syncEditorToSlot()
+            if (loaded.any { it != null }) initialized = true
+        }
+    }
 
     // 즉시 구매: 저장된 게임 0개면 설정·저장 안내(이미 이 화면이므로 이동 없이 스낵바).
     // 스낵바는 scope로 분리 — dismiss가 상태를 바꿔 이 이펙트가 재시작(=취소)돼도 표시가 살아남는다.
@@ -187,7 +206,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
         if (rollingAllAuto) {
             delay(950)
             for (i in 0 until 5) games[i] = emptyList()
-            selected = emptySet(); isAuto = true; saved = false
+            selected = emptySet(); slotMode = SlotMode.AUTO; saved = false
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             rollingAllAuto = false
         }
@@ -201,7 +220,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             onDismiss = { showSmartDialog = false },
             onApplyCurrent = { numberSet ->
                 selected = numberSet.toSet()
-                isAuto = false
+                slotMode = SlotMode.MANUAL
                 games[currentSlot] = numberSet.sorted()
                 saved = false
                 showSmartDialog = false
@@ -219,16 +238,6 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                 showSmartDialog = false
             },
         )
-    }
-
-    fun confirmSlot() {
-        if (!isAuto && selected.size != 6) return
-        games[currentSlot] = if (isAuto) emptyList() else selected.sorted()
-        saved = false
-        if (currentSlot < 4) currentSlot++
-        syncEditorToSlot()
-        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-        scope.launch { confirmPop.snapTo(0.92f); confirmPop.animateTo(1f, MotionSpecs.bouncy()) }
     }
 
     Box(modifier) {
@@ -349,27 +358,31 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(4.dp))
 
-            // 수동/자동 토글 — bouncy 스프링 슬라이드 인디케이터.
-            // 토글은 보기 전환일 뿐 — 확정 전엔 선택을 파괴하지 않는다(자동↔수동 왕복 보존, P5).
+            // 수동/자동/스마트 토글 — bouncy 스프링 슬라이드 인디케이터.
             ModeToggle(
-                isAuto = isAuto,
-                onChange = { auto -> isAuto = auto },
+                mode = slotMode,
+                onChange = { mode -> slotMode = mode },
             )
             Spacer(Modifier.height(16.dp))
 
-            if (!isAuto) {
-                // 확정 전 선택은 저장 대상이 아니므로 saved는 건드리지 않는다(P4).
-                NumberGrid(selected = selected, onToggle = { n ->
-                    selected = when {
-                        n in selected -> selected - n
-                        selected.size < 6 -> selected + n
-                        else -> selected
-                    }
-                })
-                Spacer(Modifier.height(12.dp))
-                SelectedNumbers(selected)
-            } else {
-                AutoSlotCard()
+            when (slotMode) {
+                SlotMode.MANUAL -> {
+                    NumberGrid(selected = selected, onToggle = { n ->
+                        selected = when {
+                            n in selected -> selected - n
+                            selected.size < 6 -> selected + n
+                            else -> selected
+                        }
+                    })
+                    Spacer(Modifier.height(12.dp))
+                    SelectedNumbers(selected)
+                }
+                SlotMode.AUTO -> {
+                    AutoSlotCard()
+                }
+                SlotMode.SMART -> {
+                    SmartSlotCard()
+                }
             }
             Spacer(Modifier.height(24.dp))
 
@@ -379,13 +392,13 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
-                    onClick = { selected = emptySet(); games[currentSlot] = null; isAuto = false; saved = false },
+                    onClick = { selected = emptySet(); games[currentSlot] = null; slotMode = SlotMode.MANUAL; saved = false },
                     modifier = Modifier.weight(1f).height(56.dp),
                     shape = CircleShape,
                 ) { Text(stringResource(R.string.buttonReset), fontWeight = FontWeight.SemiBold) }
                 CtaButton(
                     onClick = { confirmSlot() },
-                    enabled = isAuto || selected.size == 6,
+                    enabled = slotMode != SlotMode.MANUAL || selected.size == 6,
                     modifier = Modifier.weight(2f).graphicsLayer {
                         scaleX = confirmPop.value
                         scaleY = confirmPop.value
@@ -594,9 +607,9 @@ private fun SlotTabs(
     }
 }
 
-/** 수동/자동 세그먼트 토글 — 민트 인디케이터가 bouncy 스프링으로 슬라이드. */
+/** 수동/자동/스마트 세그먼트 토글 — 민트 인디케이터가 bouncy 스프링으로 슬라이드. */
 @Composable
-private fun ModeToggle(isAuto: Boolean, onChange: (Boolean) -> Unit) {
+private fun ModeToggle(mode: SlotMode, onChange: (SlotMode) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     BoxWithConstraints(
         Modifier
@@ -606,16 +619,20 @@ private fun ModeToggle(isAuto: Boolean, onChange: (Boolean) -> Unit) {
             .background(scheme.surfaceContainerLowest)
             .border(1.dp, scheme.outlineVariant, CircleShape),
     ) {
-        val half = maxWidth / 2
+        val third = maxWidth / 3
         val indicatorX by animateDpAsState(
-            targetValue = if (isAuto) half else 0.dp,
+            targetValue = when (mode) {
+                SlotMode.MANUAL -> 0.dp
+                SlotMode.AUTO -> third
+                SlotMode.SMART -> third * 2
+            },
             animationSpec = MotionSpecs.bouncy(),
             label = "modeIndicator",
         )
         Box(
             Modifier
                 .offset(x = indicatorX)
-                .width(half)
+                .width(third)
                 .fillMaxHeight()
                 .padding(4.dp)
                 .clip(CircleShape)
@@ -628,15 +645,21 @@ private fun ModeToggle(isAuto: Boolean, onChange: (Boolean) -> Unit) {
         )
         Row(Modifier.fillMaxSize()) {
             ModeLabel(
-                text = stringResource(R.string.modeManual), // 이모지는 R.string에 포함
-                active = !isAuto,
-                onClick = { onChange(false) },
+                text = stringResource(R.string.modeManual),
+                active = mode == SlotMode.MANUAL,
+                onClick = { onChange(SlotMode.MANUAL) },
                 modifier = Modifier.weight(1f),
             )
             ModeLabel(
                 text = stringResource(R.string.modeAuto),
-                active = isAuto,
-                onClick = { onChange(true) },
+                active = mode == SlotMode.AUTO,
+                onClick = { onChange(SlotMode.AUTO) },
+                modifier = Modifier.weight(1f),
+            )
+            ModeLabel(
+                text = stringResource(R.string.modeSmart),
+                active = mode == SlotMode.SMART,
+                onClick = { onChange(SlotMode.SMART) },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -740,6 +763,35 @@ private fun AutoSlotCard() {
 }
 
 @Composable
+private fun SmartSlotCard() {
+    SectionCard(contentPadding = PaddingValues(32.dp)) {
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            GlossyIconTile(
+                icon = Icons.Rounded.AutoAwesome,
+                tint = LgAmber,
+                size = 56.dp,
+            )
+            Spacer(Modifier.height(14.dp))
+            Text(
+                stringResource(R.string.smartSlotTitle),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.smartSlotSubtitle),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
 private fun GameSummary(
     games: List<List<Int>?>,
     currentSlot: Int,
@@ -756,6 +808,7 @@ private fun GameSummary(
                 g == null -> if (selecting) stringResource(R.string.gameSummarySelecting)
                 else stringResource(R.string.gameSummaryNotSet)
                 g.isEmpty() -> stringResource(R.string.gameSummaryAuto)
+                g.size == 1 && g[0] == -1 -> stringResource(R.string.gameSummarySmart)
                 else -> g.joinToString(", ")
             }
             Row(

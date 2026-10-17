@@ -7,6 +7,8 @@ import com.umicorp.autolotto.data.SecureStore
 import com.umicorp.autolotto.dhlottery.AuthService
 import com.umicorp.autolotto.dhlottery.DhlotterySession
 import com.umicorp.autolotto.dhlottery.PurchaseService
+import com.umicorp.autolotto.parseManualGames
+import com.umicorp.autolotto.resolveSlotsForPurchase
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
@@ -96,23 +98,12 @@ class AutoPurchaseWorker(context: Context, params: WorkerParameters) : Coroutine
 
                 step = "parse_numbers"
                 val manualJson = store.getManualNumbers()
-                val manualNumbers = mutableListOf<List<Int>>()
-                var autoGames = 0
-                try {
-                    val parsed = JSONArray(manualJson)
-                    for (i in 0 until parsed.length()) {
-                        if (parsed.isNull(i)) continue                 // 미설정 슬롯 — 스킵
-                        val g = parsed.optJSONArray(i) ?: continue
-                        if (g.length() > 0) {                          // 수동 게임
-                            manualNumbers.add((0 until g.length()).map { g.getInt(it) })
-                        } else {                                       // 빈 배열 = 자동 게임
-                            autoGames++
-                        }
-                    }
+                val parsedSlots = try {
+                    parseManualGames(manualJson)
                 } catch (e: Exception) {
-                    manualNumbers.clear()
-                    autoGames = games                                  // 파싱 실패 시 전부 자동(원본 폴백)
+                    List(5) { emptyList() }
                 }
+                val (autoGames, manualNumbers) = resolveSlotsForPurchase(parsedSlots, ctx)
 
                 if (autoGames == 0 && manualNumbers.isEmpty()) return
 

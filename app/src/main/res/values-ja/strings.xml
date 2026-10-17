@@ -35,8 +35,11 @@
     <string name="numberSetupInstruction">毎週自動購入する番号を設定してください。\n手動番号は毎週固定、自動は毎週ランダム生成されます。</string>
     <string name="modeManual">✏️ 手動</string>
     <string name="modeAuto">🎲 自動</string>
+    <string name="modeSmart">✨ 스마트</string>
     <string name="autoNumberTitle">自動番号</string>
     <string name="autoNumberSubtitle">毎週ランダムに生成されます</string>
+    <string name="smartSlotTitle">スマート番号モード</string>
+    <string name="smartSlotSubtitle">購入するたびに3つのスマート戦略(バランス/頻出/未出現)の1つがランダム選択され自動生成されます。</string>
     <string name="buttonAllAuto">すべて自動</string>
     <string name="buttonReset">リセット</string>
     <string name="buttonConfirmGame">ゲーム%1$s 確定 ✓</string>
@@ -46,6 +49,7 @@
     <string name="rollingAllAuto">運試し中</string>
     <string name="gameSummaryNotSet">未設定</string>
     <string name="gameSummaryAuto">🎲 自動 (毎週ランダム)</string>
+    <string name="gameSummarySmart">✨ 스마트 (購入時毎回変更)</string>
     <string name="buttonSaveDone">保存完了！</string>
     <string name="buttonSaveGames">%1$dゲーム設定を保存</string>
     <string name="buttonSaveEmpty">ゲームなしで保存</string>

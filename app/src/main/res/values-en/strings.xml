@@ -35,8 +35,11 @@
     <string name="numberSetupInstruction">Set numbers for weekly auto purchase.\nManual numbers are fixed weekly, auto numbers are randomly generated.</string>
     <string name="modeManual">✏️ Manual</string>
     <string name="modeAuto">🎲 Auto</string>
+    <string name="modeSmart">✨ Smart</string>
     <string name="autoNumberTitle">Auto Numbers</string>
     <string name="autoNumberSubtitle">Randomly generated each week</string>
+    <string name="smartSlotTitle">Smart Numbers Mode</string>
+    <string name="smartSlotSubtitle">Generates numbers dynamically on each purchase using 1 of 3 smart strategies (Balanced/Hot/Cold).</string>
     <string name="buttonAllAuto">All Auto</string>
     <string name="buttonReset">Reset</string>
     <string name="buttonConfirmGame">Confirm Game %1$s ✓</string>
@@ -46,6 +49,7 @@
     <string name="rollingAllAuto">Rolling for luck</string>
     <string name="gameSummaryNotSet">Not set</string>
     <string name="gameSummaryAuto">🎲 Auto (Weekly Random)</string>
+    <string name="gameSummarySmart">✨ Smart (Generates on Purchase)</string>
     <string name="buttonSaveDone">Saved!</string>
     <string name="buttonSaveGames">Save %1$d Games</string>
     <string name="buttonSaveEmpty">Save with No Games</string>

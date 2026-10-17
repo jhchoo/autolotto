@@ -40,8 +40,11 @@
     <string name="numberSetupInstruction">매주 자동 구매할 번호를 설정하세요.\n수동 번호는 매주 고정, 자동은 매주 랜덤 생성됩니다.</string>
     <string name="modeManual">✏️ 수동</string>
     <string name="modeAuto">🎲 자동</string>
+    <string name="modeSmart">✨ 스마트</string>
     <string name="autoNumberTitle">자동 번호</string>
     <string name="autoNumberSubtitle">매주 랜덤으로 생성됩니다</string>
+    <string name="smartSlotTitle">스마트 번호 모드</string>
+    <string name="smartSlotSubtitle">매번 구매할 때마다 3가지 스마트 전략(균형/자주나온번호/미출현) 중 하나가 무작위 선택되어 자동 생성됩니다.</string>
     <string name="buttonAllAuto">전부 자동</string>
     <string name="buttonReset">초기화</string>
     <string name="buttonConfirmGame">게임 %1$s 확정 ✓</string>
@@ -51,6 +54,7 @@
     <string name="rollingAllAuto">행운을 굴리는 중</string>
     <string name="gameSummaryNotSet">미설정</string>
     <string name="gameSummaryAuto">🎲 자동 (매주 랜덤)</string>
+    <string name="gameSummarySmart">✨ 스마트 (구매 시 매번 변경)</string>
     <string name="buttonSaveDone">저장 완료!</string>
     <string name="buttonSaveGames">%1$d게임 설정 저장</string>
     <string name="buttonSaveEmpty">게임 없이 저장</string>
