@@ -194,4 +194,37 @@
     <string name="instantErrorFallback">구매에 실패했습니다. 다시 시도해주세요.</string>
     <string name="instantStoreError">저장된 번호를 읽지 못했습니다. 잠시 후 다시 시도해주세요.</string>
     <string name="instantNeedsSetup">구매할 게임을 먼저 설정하고 저장해주세요.</string>
+
+    <!-- 스마트 번호 추천 -->
+    <string name="buttonSmartGenerate">✨ 스마트 번호 추천</string>
+    <string name="smartGeneratorTitle">스마트 번호 추천</string>
+    <string name="smartGeneratorSubtitle">출현 빈도 및 통계 패턴(홀짝, 고저, 끝자리, 연속번호)을 반영해 번호를 추천합니다.</string>
+    <string name="smartStrategyBalanced">⚖️ 균형 추천</string>
+    <string name="smartStrategyBalancedDesc">자주 나온 번호(2) + 미출현 번호(2) + 일반 번호(2)</string>
+    <string name="smartStrategyHot">🔥 자주 나온 번호 위주</string>
+    <string name="smartStrategyHotDesc">통계상 자주 출현한 번호(4) 중심 추천</string>
+    <string name="smartStrategyCold">❄️ 장기 미출현 위주</string>
+    <string name="smartStrategyColdDesc">오랫동안 나오지 않은 번호(4) 중심 추천</string>
+    <string name="smartAnalysisOddEven">홀짝 %1$d:%2$d</string>
+    <string name="smartAnalysisHighLow">저고 %1$d:%2$d</string>
+    <string name="smartAnalysisSum">합계 %1$d</string>
+    <string name="smartApplyCurrentSlot">게임 %1$s에 적용</string>
+    <string name="smartApplyAllEmptySlots">빈 게임 슬롯 전체 채우기</string>
+    <string name="smartGenerateNew">🎲 다시 생성</string>
+    <string name="smartHistoryRange">📊 제 %1$d회 ~ 제 %2$d회 분석 기준</string>
+    <string name="smartTopFrequentTitle">최다 출현 번호 TOP 5</string>
+    <string name="sectionWinningHistory">🏆 당첨 번호 조회</string>
+    <string name="winningHistoryTitle">당첨 번호</string>
+    <string name="winningHistoryMax100Notice">최대 100개까지 한꺼번에 가능합니다</string>
+    <string name="winningHistoryLoading">당첨 번호 수집 중…</string>
+    <string name="winningHistorySearchHint">회차 검색 (예: 1200, 1…)</string>
+    <string name="winningHistoryTotalCount">총 %1$d개 회차 중 %2$d개 표시</string>
+    <string name="winningHistoryLoadMore">➕ 더 보기 (+10개)</string>
+    <string name="buttonSearch">검색</string>
+
+    <!-- 점검 / 오프라인 모드 -->
+    <string name="maintenanceDialogTitle">🚧 동행복권 점검 안내</string>
+    <string name="maintenanceDialogBody">현재 동행복권 서버 점검 중이거나 네트워크 연결이 원활하지 않습니다.\n\n앱이 오프라인 모드로 전환되며, 번호 설정 및 저장된 당첨 번호 조회 등 오프라인 기능을 이용하실 수 있습니다.</string>
+    <string name="maintenanceBannerNotice">🚧 동행복권 시스템 점검 중 (오프라인 모드)</string>
+    <string name="maintenancePurchaseDisabled">점검 중에는 온라인 구매를 이용할 수 없습니다</string>
 </resources>

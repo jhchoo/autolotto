@@ -25,10 +25,12 @@ import com.umicorp.autolotto.ui.vm.NumberViewModel
 import com.umicorp.autolotto.ui.vm.SettingsViewModel
 import com.umicorp.autolotto.util.OnceGate
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -153,6 +155,36 @@ class AppContainer(context: Context) {
         // 앱 실행마다 알람 재무장(자동구매 활성 시). 업데이트·강제종료·OEM 정리로 소실된 알람 복구 — 멱등.
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
         runCatching { scheduler.rescheduleAll() }
+
+        // 네트워크 체크 및 당첨번호 수집은 스플래시 화면을 지연시키지 않도록 백그라운드 비동기 수행
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching { checkServerHealth(appContext) }
+            runCatching { syncLatestWinningResults(appContext) }
+        }
+    }
+
+    private val _serverHealth = MutableStateFlow<com.umicorp.autolotto.dhlottery.ServerHealth>(com.umicorp.autolotto.dhlottery.ServerHealth.Online)
+    val serverHealth: StateFlow<com.umicorp.autolotto.dhlottery.ServerHealth> = _serverHealth.asStateFlow()
+
+    /** 서버 접속 및 네트워크 상태 체크 */
+    suspend fun checkServerHealth(context: Context) {
+        val health = com.umicorp.autolotto.dhlottery.ServerHealthChecker.checkHealth(context)
+        _serverHealth.value = health
+    }
+
+    /** 최신 당첨번호 동기화. DB가 비어 있으면 Lottotapa(1회~현재)/동행복권 수집, DB가 있으면 최신+1회차부터 수집. */
+    suspend fun syncLatestWinningResults(context: Context) = withContext(Dispatchers.IO) {
+        runCatching {
+            val currentRound = PurchaseService.getCurrentRound()
+            val latestStored = com.umicorp.autolotto.data.LottoHistoryStore.getLatestStoredRound(context)
+            if (latestStored == null) {
+                // 최초 수집: Lottotapa 수집 -> 동행복권 폴백
+                com.umicorp.autolotto.data.LottoHistoryStore.ensureInitialHistoryLoaded(context, resultService)
+            } else if (currentRound > latestStored) {
+                // 신규 회차 수집
+                com.umicorp.autolotto.data.LottoHistoryStore.fetchAndSaveRange(context, resultService, latestStored + 1, currentRound)
+            }
+        }
     }
 
     /** GitHub 릴리스에서 새 버전 확인 → updateInfo 세팅(없으면 null). AppShell 진입 시 호출. */

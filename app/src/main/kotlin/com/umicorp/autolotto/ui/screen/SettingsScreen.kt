@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
@@ -28,9 +29,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.AddCard
@@ -55,6 +59,7 @@ import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -69,6 +74,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -81,6 +87,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -90,8 +97,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -159,13 +170,16 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
     var showReset by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showThreshold by remember { mutableStateOf(false) }
+    var showWinningHistoryScreen by remember { mutableStateOf(false) }
+
+    fun toast(resId: Int) = scope.launch { snackbar.showSnackbar(context.resources.getString(resId)) }
 
     // 로그인 결과 → 스낵바(원본 _login의 try/catch 스낵바). consume 후 Idle 복귀.
     LaunchedEffect(loginState) {
         val msg = when (loginState) {
-            LoginState.Success -> context.getString(R.string.snackbarLoginSuccess)
-            LoginState.InvalidCredentials -> "❌ " + context.getString(R.string.errorInvalidCredentials)
-            LoginState.Error -> "❌ " + context.getString(R.string.snackbarLoginFailed)
+            LoginState.Success -> context.resources.getString(R.string.snackbarLoginSuccess)
+            LoginState.InvalidCredentials -> "❌ " + context.resources.getString(R.string.errorInvalidCredentials)
+            LoginState.Error -> "❌ " + context.resources.getString(R.string.snackbarLoginFailed)
             else -> null
         }
         if (msg != null) {
@@ -175,7 +189,13 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
         }
     }
 
-    fun toast(resId: Int) = scope.launch { snackbar.showSnackbar(context.getString(resId)) }
+    if (showWinningHistoryScreen) {
+        WinningHistoryScreen(
+            vm = vm,
+            onBack = { showWinningHistoryScreen = false },
+            modifier = modifier,
+        )
+    } else {
 
     Scaffold(
         modifier = modifier.creamPageBackground(),
@@ -479,6 +499,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
             onConfirm = { v -> vm.setBalanceAlertThreshold(v); showThreshold = false },
         )
     }
+    }
 }
 
 /**
@@ -752,6 +773,231 @@ private fun requestIgnoreBatteryOptimizations(context: Context) {
     context.launchActivitySafely(
         Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")),
     )
+}
+
+/**
+ * 당첨 번호 조회 풀 스크린 화면 (설정 -> 당첨 번호 조회 클릭 시 이동).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WinningHistoryScreen(
+    vm: SettingsViewModel,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val view = LocalView.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val imm = remember(context) { context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager }
+    val isHistoryLoading by vm.isHistoryLoading.collectAsState()
+
+    LaunchedEffect(Unit) {
+        vm.ensureWinningHistoryLoaded(context)
+    }
+
+    val latestStored = remember(isHistoryLoading, context) { vm.getLatestStoredRound(context) }
+
+    var startRoundText by remember(latestStored) { mutableStateOf((maxOf(1, latestStored - 9)).toString()) }
+    var endRoundText by remember(latestStored) { mutableStateOf(latestStored.toString()) }
+
+    var queryStartRound by remember(latestStored) { mutableIntStateOf(maxOf(1, latestStored - 9)) }
+    var queryEndRound by remember(latestStored) { mutableIntStateOf(latestStored) }
+
+    fun doSearch() {
+        focusManager.clearFocus(force = true)
+        imm?.hideSoftInputFromWindow(view.windowToken, 0)
+        keyboardController?.hide()
+
+        var s = startRoundText.toIntOrNull() ?: 1
+        var e = endRoundText.toIntOrNull() ?: latestStored
+
+        if (s > latestStored) {
+            s = latestStored
+            e = latestStored
+        } else if (s > e) {
+            e = s
+        }
+
+        if (e - s + 1 > 100) {
+            e = minOf(latestStored, s + 99)
+        }
+
+        startRoundText = s.toString()
+        endRoundText = e.toString()
+
+        queryStartRound = s
+        queryEndRound = e
+    }
+
+    val results = remember(isHistoryLoading, queryStartRound, queryEndRound, context) {
+        vm.getWinningResultsRange(context, queryStartRound, queryEndRound)
+    }
+
+    Scaffold(
+        modifier = modifier.fillMaxSize().creamPageBackground(),
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        topBar = {
+            CenterAlignedTopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.buttonCancel),
+                        )
+                    }
+                },
+                title = {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            stringResource(R.string.winningHistoryTitle),
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Text(
+                            stringResource(R.string.winningHistoryMax100Notice),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
+            )
+        },
+    ) { inner ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(inner)
+                .padding(20.dp),
+        ) {
+            // [시작 회차 입력] ~ [마지막 회차 입력] [검색 버튼]
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                OutlinedTextField(
+                    value = startRoundText,
+                    onValueChange = { startRoundText = it },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Search,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { doSearch() },
+                        onDone = { doSearch() },
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                )
+                Text("~", fontWeight = FontWeight.Bold)
+                OutlinedTextField(
+                    value = endRoundText,
+                    onValueChange = { endRoundText = it },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Search,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSearch = { doSearch() },
+                        onDone = { doSearch() },
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                )
+                Button(
+                    onClick = { doSearch() },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(52.dp),
+                ) {
+                    Text(stringResource(R.string.buttonSearch), fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+
+            if (isHistoryLoading) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(36.dp), strokeWidth = 3.dp)
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        stringResource(R.string.winningHistoryLoading),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else if (results.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.winningNumbersLoadError),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    results.forEach { r ->
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.winningNumbersWithRound, r.round),
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium,
+                                    )
+                                    if (r.date.isNotBlank()) {
+                                        Text(
+                                            r.date,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    r.numbers.forEach { n ->
+                                        LottoBall(n = n, size = 32.dp)
+                                    }
+                                    Text(
+                                        "+",
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.padding(horizontal = 2.dp),
+                                    )
+                                    LottoBall(n = r.bonus, size = 32.dp)
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(20.dp))
+                }
+            }
+        }
+    }
 }
 
 private const val URL_CHARGE = "https://www.dhlottery.co.kr/mypage/mndpChrg"

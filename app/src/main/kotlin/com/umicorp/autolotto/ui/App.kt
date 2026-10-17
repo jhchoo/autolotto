@@ -160,6 +160,15 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
     // 사이드로드 인앱 업데이트: 셸 진입 시 1회 확인 → 새 버전이면 다이얼로그.
     val container = LocalContext.current.appContainer
     val updateInfo by container.updateInfo.collectAsState()
+    val serverHealth by container.serverHealth.collectAsState()
+    var showMaintenanceDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(serverHealth) {
+        if (serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
+            showMaintenanceDialog = true
+        }
+    }
+
     LaunchedEffect(Unit) { runCatching { container.checkForUpdate() } }
 
     Scaffold(
@@ -197,6 +206,26 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
     }
 
     updateInfo?.let { UpdateDialog(it) }
+
+    if (showMaintenanceDialog) {
+        AlertDialog(
+            onDismissRequest = { showMaintenanceDialog = false },
+            title = {
+                Text(
+                    stringResource(R.string.maintenanceDialogTitle),
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(stringResource(R.string.maintenanceDialogBody))
+            },
+            confirmButton = {
+                TextButton(onClick = { showMaintenanceDialog = false }) {
+                    Text(stringResource(R.string.buttonConfirm))
+                }
+            },
+        )
+    }
 }
 
 /**

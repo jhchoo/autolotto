@@ -77,4 +77,4 @@ fun SplashScreen(container: AppContainer, onFinished: () -> Unit) {
     }
 }
 
-private const val MIN_SPLASH_MS = 1500L
+private const val MIN_SPLASH_MS = 800L

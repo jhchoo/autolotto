@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -148,6 +149,28 @@ fun HomeScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Unit) {
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp),
             ) {
+                val serverHealth by vm.serverHealth.collectAsState()
+                if (serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
+                    TonalCard(accent = LgAmber, contentPadding = PaddingValues(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Rounded.CloudOff,
+                                null,
+                                tint = LgAmber,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                stringResource(R.string.maintenanceBannerNotice),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
                 CountdownHero(vm.currentRound)
                 Spacer(Modifier.height(24.dp))
                 WinningNumbers(winning, loadingNumbers)

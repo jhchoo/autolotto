@@ -47,12 +47,20 @@ import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Surface
+import com.umicorp.autolotto.generator.LottoStrategy
+import com.umicorp.autolotto.generator.StrategyType
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -150,6 +158,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
     }
 
     val configuredCount = games.count { it != null }
+    val serverHealth by vm.serverHealth.collectAsState()
     val context = LocalContext.current
     val schedule = formatPurchaseSchedule(day, hour, minute)
     val snackbar = remember { SnackbarHostState() }
@@ -163,7 +172,8 @@ fun NumberScreen(modifier: Modifier = Modifier) {
     // 스낵바는 scope로 분리 — dismiss가 상태를 바꿔 이 이펙트가 재시작(=취소)돼도 표시가 살아남는다.
     LaunchedEffect(instantState) {
         if (instantState is InstantState.NeedsSetup) {
-            scope.launch { snackbar.showSnackbar(context.getString(R.string.instantNeedsSetup)) }
+            val msg = context.resources.getString(R.string.instantNeedsSetup)
+            scope.launch { snackbar.showSnackbar(msg) }
             vm.dismissInstant()
         }
     }
@@ -171,6 +181,8 @@ fun NumberScreen(modifier: Modifier = Modifier) {
 
     // 전부 자동: 주사위 텀블 연출(~0.95s) 후 실제 적용 — 즉시 적용은 밋밋(사용자 피드백).
     var rollingAllAuto by remember { mutableStateOf(false) }
+    var showSmartDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(rollingAllAuto) {
         if (rollingAllAuto) {
             delay(950)
@@ -179,6 +191,34 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             rollingAllAuto = false
         }
+    }
+
+    if (showSmartDialog) {
+        SmartGeneratorDialog(
+            currentSlot = currentSlot,
+            hasEmptySlots = games.any { it == null },
+            vm = vm,
+            onDismiss = { showSmartDialog = false },
+            onApplyCurrent = { numberSet ->
+                selected = numberSet.toSet()
+                isAuto = false
+                games[currentSlot] = numberSet.sorted()
+                saved = false
+                showSmartDialog = false
+            },
+            onApplyAllEmpty = { generatedSets ->
+                var setIdx = 0
+                for (i in 0 until 5) {
+                    if (games[i] == null && setIdx < generatedSets.size) {
+                        games[i] = generatedSets[setIdx].sorted()
+                        setIdx++
+                    }
+                }
+                syncEditorToSlot()
+                saved = false
+                showSmartDialog = false
+            },
+        )
     }
 
     fun confirmSlot() {
@@ -242,6 +282,48 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodySmall,
                 )
+            }
+            Spacer(Modifier.height(16.dp))
+
+            // 스마트 번호 추천
+            Card(
+                onClick = { showSmartDialog = true },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.70f),
+                ),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    GlossyIconTile(
+                        icon = Icons.Rounded.AutoAwesome,
+                        tint = MaterialTheme.colorScheme.primary,
+                        size = 36.dp,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.buttonSmartGenerate),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                        Text(
+                            stringResource(R.string.smartGeneratorSubtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                            maxLines = 1,
+                        )
+                    }
+                    Icon(
+                        Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
             }
             Spacer(Modifier.height(16.dp))
 
@@ -348,10 +430,9 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     vm.saveConfig(games.toList())
                     saved = true
                     scope.launch {
-                        snackbar.showSnackbar(
-                            if (count == 0) context.getString(R.string.snackbarSaveEmpty)
-                            else context.getString(R.string.snackbarSaveSuccess, count, schedule),
-                        )
+                        val msg = if (count == 0) context.resources.getString(R.string.snackbarSaveEmpty)
+                        else context.resources.getString(R.string.snackbarSaveSuccess, count, schedule)
+                        snackbar.showSnackbar(msg)
                     }
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -389,12 +470,14 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             // 즉시 구매 — 저장된 슬롯으로 지금 결제(설정 → 저장 → 구매 흐름). 미저장 변경은 저장 유도.
             InstantPurchaseCta(
                 isLoggedIn = isLoggedIn,
+                serverHealth = serverHealth,
                 purchasedThisRound = lastRound >= vm.currentRound,
                 saleOpen = vm.isSaleOpenNow(),
                 onTap = {
                     // 저장 상태 요구는 첫 구매만 — 추가 구매(자동 N게임)는 저장 슬롯을 쓰지 않는다.
                     if (!saved && lastRound < vm.currentRound) {
-                        scope.launch { snackbar.showSnackbar(context.getString(R.string.instantNeedsSetup)) }
+                        val msg = context.resources.getString(R.string.instantNeedsSetup)
+                        scope.launch { snackbar.showSnackbar(msg) }
                     } else {
                         vm.onInstantTap()
                     }
@@ -747,11 +830,13 @@ private fun GameSummary(
 @Composable
 private fun InstantPurchaseCta(
     isLoggedIn: Boolean,
+    serverHealth: com.umicorp.autolotto.dhlottery.ServerHealth,
     purchasedThisRound: Boolean,
     saleOpen: Boolean,
     onTap: () -> Unit,
 ) {
     val disabledLabel = when {
+        serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online -> stringResource(R.string.maintenancePurchaseDisabled)
         !isLoggedIn -> stringResource(R.string.hintLoginRequired)
         !saleOpen -> stringResource(R.string.instantNotSaleTime)
         else -> null
@@ -894,6 +979,260 @@ private fun InstantNoticeDialog(title: String, text: String, onDismiss: () -> Un
         text = { Text(text) },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.buttonConfirm)) }
+        },
+    )
+}
+
+/** 스마트 번호 추천 다이얼로그 */
+@Composable
+private fun SmartGeneratorDialog(
+    currentSlot: Int,
+    hasEmptySlots: Boolean,
+    vm: NumberViewModel,
+    onDismiss: () -> Unit,
+    onApplyCurrent: (List<Int>) -> Unit,
+    onApplyAllEmpty: (List<List<Int>>) -> Unit,
+) {
+    val context = LocalContext.current
+    val isHistoryLoading by vm.isHistoryLoading.collectAsState()
+
+    LaunchedEffect(Unit) {
+        vm.ensureWinningHistoryLoaded(context)
+    }
+
+    var selectedStrategy by remember { mutableStateOf(LottoStrategy.BALANCED) }
+    var generatedNumbers by remember { mutableStateOf(vm.generateSmartNumbers(context, selectedStrategy)) }
+
+    LaunchedEffect(isHistoryLoading) {
+        if (!isHistoryLoading) {
+            generatedNumbers = vm.generateSmartNumbers(context, selectedStrategy)
+        }
+    }
+
+    fun regenerate() {
+        generatedNumbers = vm.generateSmartNumbers(context, selectedStrategy)
+    }
+
+    val analysis = remember(isHistoryLoading, context) { vm.getFrequencyAnalysis(context) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.AutoAwesome,
+                    contentDescription = null,
+                    tint = LgTeal,
+                    modifier = Modifier.size(24.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.smartGeneratorTitle),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        },
+        text = {
+            if (isHistoryLoading || analysis.totalRounds == 0) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(36.dp), strokeWidth = 3.dp)
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        stringResource(R.string.winningHistoryLoading),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text(
+                        stringResource(R.string.smartGeneratorSubtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(10.dp))
+
+                    // 📊 분석 회차 기준 표기 및 최다 출현 번호 요약
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                            Text(
+                                stringResource(R.string.smartHistoryRange, analysis.minRound, analysis.maxRound),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                stringResource(R.string.smartTopFrequentTitle) + ": " +
+                                    analysis.topFrequentNumbers(5).joinToString("  ") { (num, cnt) -> "${num}번(${cnt}회)" },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+
+                // 전략 선택 칩
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    FilterChip(
+                        selected = selectedStrategy.type == StrategyType.BALANCED,
+                        onClick = {
+                            selectedStrategy = LottoStrategy.BALANCED
+                            regenerate()
+                        },
+                        label = { Text(stringResource(R.string.smartStrategyBalanced)) },
+                    )
+                    FilterChip(
+                        selected = selectedStrategy.type == StrategyType.HOT_FOCUS,
+                        onClick = {
+                            selectedStrategy = LottoStrategy.HOT_FOCUS
+                            regenerate()
+                        },
+                        label = { Text(stringResource(R.string.smartStrategyHot)) },
+                    )
+                    FilterChip(
+                        selected = selectedStrategy.type == StrategyType.COLD_FOCUS,
+                        onClick = {
+                            selectedStrategy = LottoStrategy.COLD_FOCUS
+                            regenerate()
+                        },
+                        label = { Text(stringResource(R.string.smartStrategyCold)) },
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = when (selectedStrategy.type) {
+                        StrategyType.BALANCED -> stringResource(R.string.smartStrategyBalancedDesc)
+                        StrategyType.HOT_FOCUS -> stringResource(R.string.smartStrategyHotDesc)
+                        StrategyType.COLD_FOCUS -> stringResource(R.string.smartStrategyColdDesc)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(16.dp))
+
+                // 번호 추천 표시
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                ) {
+                    generatedNumbers.forEach { n ->
+                        LottoBall(n = n, size = 36.dp, modifier = Modifier.padding(horizontal = 2.dp))
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+
+                // 통계 요약 칩
+                val oddCount = generatedNumbers.count { it % 2 != 0 }
+                val evenCount = 6 - oddCount
+                val lowCount = generatedNumbers.count { it in 1..20 }
+                val highCount = 6 - lowCount
+                val sum = generatedNumbers.sum()
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    AssistChip(
+                        onClick = {},
+                        label = {
+                            Text(
+                                stringResource(R.string.smartAnalysisOddEven, oddCount, evenCount),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                    )
+                    AssistChip(
+                        onClick = {},
+                        label = {
+                            Text(
+                                stringResource(R.string.smartAnalysisHighLow, lowCount, highCount),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                    )
+                    AssistChip(
+                        onClick = {},
+                        label = {
+                            Text(
+                                stringResource(R.string.smartAnalysisSum, sum),
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+
+                // 다시 생성
+                OutlinedButton(
+                    onClick = { regenerate() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.smartGenerateNew), fontWeight = FontWeight.Bold)
+                }
+            }
+            }
+        },
+        confirmButton = {
+            if (isHistoryLoading || analysis.totalRounds == 0) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.buttonCancel))
+                }
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Button(
+                        onClick = { onApplyCurrent(generatedNumbers) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            stringResource(R.string.smartApplyCurrentSlot, ('A' + currentSlot).toString()),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    if (hasEmptySlots) {
+                        OutlinedButton(
+                            onClick = {
+                                val emptyCount = 5
+                                val sets = vm.generateMultipleSmartNumbers(context, emptyCount, selectedStrategy)
+                                onApplyAllEmpty(sets)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                stringResource(R.string.smartApplyAllEmptySlots),
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    }
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.buttonCancel))
+                    }
+                }
+            }
         },
     )
 }

@@ -184,6 +184,39 @@
     <string name="instantAlreadyPurchased">この回はたった今購入されました。追加購入をご利用ください。</string>
     <string name="instantRoundChanged">回が変わったため購入をキャンセルしました。もう一度ご確認ください。</string>
     <string name="instantErrorFallback">購入に失敗しました。もう一度お試しください。</string>
-    <string name="instantStoreError">保存した番号を読み込めませんでした。しばらくしてから再試行してください。</string>
+    <string name="instantStoreError">保存した番号를 読み込めませんでした。しばらくしてから再試行してください。</string>
     <string name="instantNeedsSetup">先に購入するゲームを設定して保存してください。</string>
+
+    <!-- 스마트 번호 추천 -->
+    <string name="buttonSmartGenerate">✨ スマート番号推薦</string>
+    <string name="smartGeneratorTitle">スマート番号推薦</string>
+    <string name="smartGeneratorSubtitle">出現頻度と統計パターン(奇数/偶数、高低、末尾、連続番号)を反映して番号を生成します。</string>
+    <string name="smartStrategyBalanced">⚖️ バランス推薦</string>
+    <string name="smartStrategyBalancedDesc">頻出(2) + 未出現(2) + 通常(2)</string>
+    <string name="smartStrategyHot">🔥 頻出番号中心</string>
+    <string name="smartStrategyHotDesc">統計上よく出る番号(4)を中心に推薦</string>
+    <string name="smartStrategyCold">❄️ 長期未出現中心</string>
+    <string name="smartStrategyColdDesc">長らく出ていない番号(4)を中心に推薦</string>
+    <string name="smartAnalysisOddEven">奇偶 %1$d:%2$d</string>
+    <string name="smartAnalysisHighLow">低高 %1$d:%2$d</string>
+    <string name="smartAnalysisSum">合計 %1$d</string>
+    <string name="smartApplyCurrentSlot">ゲーム%1$sに適用</string>
+    <string name="smartApplyAllEmptySlots">空きスロット全体を埋める</string>
+    <string name="smartGenerateNew">🎲 再生成</string>
+    <string name="smartHistoryRange">📊 第%1$d回 ~ 第%2$d回 分析基準</string>
+    <string name="smartTopFrequentTitle">最多出現番号 TOP 5</string>
+    <string name="sectionWinningHistory">🏆 当選番号照会 (1200回 ~ 最新)</string>
+    <string name="winningHistoryTitle">当選番号 (1200回 ~ 最新)</string>
+    <string name="winningHistoryMax100Notice">一度に最大100件まで照会可能です</string>
+    <string name="winningHistoryLoading">当選番号を取得中…</string>
+    <string name="winningHistorySearchHint">回次検索 (例: 1200, 1…)</string>
+    <string name="winningHistoryTotalCount">全%1$d回中 %2$d件表示</string>
+    <string name="winningHistoryLoadMore">➕ もっと見る (+10件)</string>
+    <string name="buttonSearch">検索</string>
+
+    <!-- メンテナンス / オフライン -->
+    <string name="maintenanceDialogTitle">🚧 同行福券 メンテナンス案内</string>
+    <string name="maintenanceDialogBody">現在、同行福券サーバーのメンテナンス中またはネットワーク接続ができません。\n\nアプリはオフラインモードに切り替わり、番号設定や保存された当選番号照会などのオフライン機能をご利用いただけます。</string>
+    <string name="maintenanceBannerNotice">🚧 同行福券システムメンテナンス中 (オフラインモード)</string>
+    <string name="maintenancePurchaseDisabled">メンテナンス中はオンライン購入をご利用いただけません</string>
 </resources>

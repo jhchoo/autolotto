@@ -33,6 +33,7 @@ import java.time.ZonedDateTime
 
 /** 홈: 카운트다운(회차) + 지난 회차 당첨번호 + 잔액/자동구매 상태(공유). */
 class HomeViewModel(private val container: AppContainer) : ViewModel() {
+    val serverHealth = container.serverHealth
     val isLoggedIn = container.isLoggedIn
     val autoLoginFailed = container.autoLoginFailed
     val hydrationFailed = container.hydrationFailed
@@ -81,6 +82,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
 /** 번호 설정: 5슬롯(null=미설정 / emptyList=자동 / [nums]=수동) 읽기·쓰기. */
 class NumberViewModel(private val container: AppContainer) : ViewModel() {
+    val serverHealth = container.serverHealth
     val autoEnabled = container.autoEnabled
     // 저장 완료 스낵바의 스케줄 문구용(원본 number_screen이 autoPurchaseDay/Hour/Minute 프로바이더를 읽음).
     val autoPurchaseDay = container.autoPurchaseDay
@@ -118,6 +120,54 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
         _gamesLoaded.value = true
         _gamesLoadFailed.value = false
         viewModelScope.launch { container.saveManualGames(games) }
+    }
+
+    // === 스마트 번호 추천 ===
+
+    private val _isHistoryLoading = MutableStateFlow(false)
+    val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
+
+    /** 당첨 데이터가 없으면 최초 자동 수집 수행 */
+    suspend fun ensureWinningHistoryLoaded(context: android.content.Context) {
+        if (!com.umicorp.autolotto.data.LottoHistoryStore.hasData(context)) {
+            _isHistoryLoading.value = true
+            container.syncLatestWinningResults(context)
+            _isHistoryLoading.value = false
+        }
+    }
+
+    /** 1000회~최신회차 실시간 당첨 통계 분석 정보 조회 */
+    fun getFrequencyAnalysis(context: android.content.Context): com.umicorp.autolotto.generator.FrequencyAnalysis {
+        val history = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(context)
+        return com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyze(history)
+    }
+
+    /** 지정한 전략과 분석 데이터에 맞춰 6개 로또 번호 1세트 생성 */
+    fun generateSmartNumbers(
+        context: android.content.Context,
+        strategy: com.umicorp.autolotto.generator.LottoStrategy = com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
+    ): List<Int> {
+        val analysis = getFrequencyAnalysis(context)
+        return com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(strategy, analysis)
+    }
+
+    /** 지정한 전략과 분석 데이터에 맞춰 N개의 서로 다른 6개 로또 번호 세트 생성 */
+    fun generateMultipleSmartNumbers(
+        context: android.content.Context,
+        count: Int,
+        strategy: com.umicorp.autolotto.generator.LottoStrategy = com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
+    ): List<List<Int>> {
+        val analysis = getFrequencyAnalysis(context)
+        val result = mutableListOf<List<Int>>()
+        var attempts = 0
+        while (result.size < count && attempts < 100) {
+            val candidate = com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(strategy, analysis)
+            if (candidate !in result) {
+                result.add(candidate)
+            }
+            attempts++
+        }
+        return result
     }
 
     // === 즉시 구매 (번호 탭 저장 버튼 아래 CTA — 스펙 docs/DESIGN-instant-purchase.md) ===
@@ -375,6 +425,52 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val balanceAlertThreshold = container.balanceAlertThreshold
     val language = container.language
     val loggedInUserId = container.loggedInUserId
+
+    private val _isHistoryLoading = MutableStateFlow(false)
+    val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
+
+    /** 당첨 데이터가 없으면 최초 자동 수집 수행 */
+    suspend fun ensureWinningHistoryLoaded(context: android.content.Context) {
+        if (!com.umicorp.autolotto.data.LottoHistoryStore.hasData(context)) {
+            _isHistoryLoading.value = true
+            container.syncLatestWinningResults(context)
+            _isHistoryLoading.value = false
+        }
+    }
+
+    /** N 부터 K 회차까지 당첨번호 조회 */
+    fun getWinningResultsFromRound(context: android.content.Context, startRound: Int = 1200): List<com.umicorp.autolotto.data.WinningResult> {
+        return com.umicorp.autolotto.data.LottoHistoryStore.getResultsFromRound(context, startRound)
+    }
+
+    /** 회차 범위(startRound..endRound) 당첨번호 조회 */
+    fun getWinningResultsRange(
+        context: android.content.Context,
+        startRound: Int,
+        endRound: Int,
+    ): List<com.umicorp.autolotto.data.WinningResult> {
+        return com.umicorp.autolotto.data.LottoHistoryStore.getWinningResultsRange(context, startRound, endRound)
+    }
+
+    /** 최근 저장된 회차 번호 반환 */
+    fun getLatestStoredRound(context: android.content.Context): Int {
+        return com.umicorp.autolotto.data.LottoHistoryStore.getLatestStoredRound(context) ?: 1246
+    }
+
+    /** 검색어 및 페이징 기반 당첨번호 조회 */
+    fun getWinningResultsFiltered(
+        context: android.content.Context,
+        searchQuery: String? = null,
+        limit: Int = 10,
+        offset: Int = 0,
+    ): List<com.umicorp.autolotto.data.WinningResult> {
+        return com.umicorp.autolotto.data.LottoHistoryStore.getWinningResultsFiltered(context, searchQuery, limit, offset)
+    }
+
+    /** 저장된 전체 회차 개수 반환 */
+    fun getWinningHistoryTotalCount(context: android.content.Context): Int {
+        return com.umicorp.autolotto.data.LottoHistoryStore.getTotalCount(context)
+    }
 
     /** 로그인 진행/결과 (스낵바·다이얼로그용). 원본 INVALID_CREDENTIALS 분기 유지. */
     sealed interface LoginState {

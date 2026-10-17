@@ -186,4 +186,37 @@
     <string name="instantErrorFallback">Purchase failed. Please try again.</string>
     <string name="instantStoreError">Couldn\'t read saved numbers. Please try again shortly.</string>
     <string name="instantNeedsSetup">Set up and save your games before buying.</string>
+
+    <!-- Smart Generator -->
+    <string name="buttonSmartGenerate">✨ Smart Number Generator</string>
+    <string name="smartGeneratorTitle">Smart Number Generator</string>
+    <string name="smartGeneratorSubtitle">Recommends numbers using frequency &amp; statistical patterns (Odd/Even, High/Low, Last Digits, Consecutive).</string>
+    <string name="smartStrategyBalanced">⚖️ Balanced Recommender</string>
+    <string name="smartStrategyBalancedDesc">Hot (2) + Cold (2) + Normal (2)</string>
+    <string name="smartStrategyHot">🔥 Hot Numbers Focus</string>
+    <string name="smartStrategyHotDesc">Focuses on statistically frequent numbers (4)</string>
+    <string name="smartStrategyCold">❄️ Cold Numbers Focus</string>
+    <string name="smartStrategyColdDesc">Focuses on long-absent numbers (4)</string>
+    <string name="smartAnalysisOddEven">Odd:Even %1$d:%2$d</string>
+    <string name="smartAnalysisHighLow">Low:High %1$d:%2$d</string>
+    <string name="smartAnalysisSum">Sum %1$d</string>
+    <string name="smartApplyCurrentSlot">Apply to Game %1$s</string>
+    <string name="smartApplyAllEmptySlots">Fill All Empty Game Slots</string>
+    <string name="smartGenerateNew">🎲 Regenerate</string>
+    <string name="smartHistoryRange">📊 Based on Rounds %1$d ~ %2$d</string>
+    <string name="smartTopFrequentTitle">Most Frequent TOP 5</string>
+    <string name="sectionWinningHistory">🏆 Winning Numbers (Round 1200+)</string>
+    <string name="winningHistoryTitle">Winning Numbers (1200 ~ Latest)</string>
+    <string name="winningHistoryMax100Notice">Up to 100 rounds can be viewed at once</string>
+    <string name="winningHistoryLoading">Fetching winning numbers…</string>
+    <string name="winningHistorySearchHint">Search Round (e.g. 1200, 1…)</string>
+    <string name="winningHistoryTotalCount">Showing %2$d of %1$d total rounds</string>
+    <string name="winningHistoryLoadMore">➕ Load More (+10)</string>
+    <string name="buttonSearch">Search</string>
+
+    <!-- Maintenance / Offline -->
+    <string name="maintenanceDialogTitle">🚧 DHLottery Under Maintenance</string>
+    <string name="maintenanceDialogBody">The DHLottery server is currently under maintenance or network connection is unavailable.\n\nThe app switched to offline mode. You can still use offline features such as configuring numbers and viewing saved winning numbers.</string>
+    <string name="maintenanceBannerNotice">🚧 DHLottery Server Maintenance (Offline Mode)</string>
+    <string name="maintenancePurchaseDisabled">Online purchase unavailable during maintenance</string>
 </resources>
