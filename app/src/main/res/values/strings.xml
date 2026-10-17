@@ -198,9 +198,9 @@
     <string name="smartGeneratorTitle">스마트 번호 추천</string>
     <string name="smartGeneratorSubtitle">출현 빈도 및 통계 패턴(홀짝, 고저, 끝자리, 연속번호)을 반영해 번호를 추천합니다.</string>
     <string name="smartStrategyBalanced">⚖️ 균형 추천</string>
-    <string name="smartStrategyBalancedDesc">자주 나온 번호(2) + 미출현 번호(2) + 일반 번호(2)</string>
+    <string name="smartStrategyBalancedDesc">합계 130~180 · 홀짝/고저(1~22/23~45) 3:3·4:2·2:4</string>
     <string name="smartStrategyHot">🔥 자주 나온 번호 위주</string>
-    <string name="smartStrategyHotDesc">통계상 자주 출현한 번호(4) 중심 추천</string>
+    <string name="smartStrategyHotDesc">최근 50회 기준 자주 나온 번호 중심 추천</string>
     <string name="smartStrategyCold">❄️ 장기 미출현 위주</string>
     <string name="smartStrategyColdDesc">오랫동안 나오지 않은 번호(4) 중심 추천</string>
     <string name="smartAnalysisOddEven">홀짝 %1$d:%2$d</string>

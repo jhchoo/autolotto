@@ -87,4 +87,13 @@ object LottoFrequencyAnalyzer {
             normalNumbers = normalNumbers,
         )
     }
+
+    /** 최근 N회차(기본 50회) 기준 출현 빈도 분석 */
+    fun analyzeRecent(history: Map<Int, WinningResult>, recentCount: Int = 50): FrequencyAnalysis {
+        if (history.isEmpty()) return analyze(history)
+        val sortedKeys = history.keys.sortedDescending()
+        val recentKeys = sortedKeys.take(recentCount).toSet()
+        val recentHistory = history.filterKeys { it in recentKeys }
+        return analyze(recentHistory)
+    }
 }

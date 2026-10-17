@@ -192,9 +192,9 @@
     <string name="smartGeneratorTitle">Smart Number Generator</string>
     <string name="smartGeneratorSubtitle">Recommends numbers using frequency &amp; statistical patterns (Odd/Even, High/Low, Last Digits, Consecutive).</string>
     <string name="smartStrategyBalanced">⚖️ Balanced Recommender</string>
-    <string name="smartStrategyBalancedDesc">Hot (2) + Cold (2) + Normal (2)</string>
+    <string name="smartStrategyBalancedDesc">Sum 130~180 · Odd/Even &amp; High/Low(1~22/23~45)</string>
     <string name="smartStrategyHot">🔥 Hot Numbers Focus</string>
-    <string name="smartStrategyHotDesc">Focuses on statistically frequent numbers (4)</string>
+    <string name="smartStrategyHotDesc">Focuses on frequent numbers from recent 50 rounds</string>
     <string name="smartStrategyCold">❄️ Cold Numbers Focus</string>
     <string name="smartStrategyColdDesc">Focuses on long-absent numbers (4)</string>
     <string name="smartAnalysisOddEven">Odd:Even %1$d:%2$d</string>

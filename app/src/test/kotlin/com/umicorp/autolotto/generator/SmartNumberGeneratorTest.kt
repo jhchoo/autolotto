@@ -29,12 +29,13 @@ class SmartNumberGeneratorTest {
         val evenCount = 6 - oddCount
         assertTrue((oddCount to evenCount) in strategy.oddEvenRatios)
 
-        val lowCount = numbers.count { it in 1..20 }
+        val lowCount = numbers.count { it in 1..22 }
         val highCount = 6 - lowCount
         assertTrue((lowCount to highCount) in strategy.highLowRatios)
 
         val sum = numbers.sum()
         assertTrue(sum in strategy.minSum..strategy.maxSum)
+        assertTrue(sum in 130..180)
     }
 
     @Test

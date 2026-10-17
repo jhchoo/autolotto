@@ -23,8 +23,8 @@ data class LottoStrategy(
     val highLowRatios: Set<Pair<Int, Int>> = setOf(3 to 3, 4 to 2, 2 to 4),
     val maxSameLastDigit: Int = 2,
     val maxConsecutive: Int = 2,
-    val minSum: Int = 100,
-    val maxSum: Int = 175,
+    val minSum: Int = 130,
+    val maxSum: Int = 180,
 ) {
     companion object {
         val BALANCED = LottoStrategy(
@@ -144,12 +144,12 @@ object SmartNumberGenerator {
         return (oddCount to evenCount) in allowedRatios
     }
 
-    /** 고저 비율 검증 (저: 1~20, 고: 21~45) */
+    /** 고저 비율 검증 (저: 1~22, 고: 23~45) */
     fun isValidHighLowRatio(
         numbers: List<Int>,
         allowedRatios: Set<Pair<Int, Int>> = setOf(3 to 3, 4 to 2, 2 to 4),
     ): Boolean {
-        val lowCount = numbers.count { it in 1..20 }
+        val lowCount = numbers.count { it in 1..22 }
         val highCount = numbers.size - lowCount
         return (lowCount to highCount) in allowedRatios
     }
@@ -175,8 +175,8 @@ object SmartNumberGenerator {
         return true
     }
 
-    /** 총합 범위 검증 */
-    fun isValidSumRange(numbers: List<Int>, minSum: Int = 100, maxSum: Int = 175): Boolean {
+    /** 총합 범위 검증 (기본 130~180) */
+    fun isValidSumRange(numbers: List<Int>, minSum: Int = 130, maxSum: Int = 180): Boolean {
         val sum = numbers.sum()
         return sum in minSum..maxSum
     }

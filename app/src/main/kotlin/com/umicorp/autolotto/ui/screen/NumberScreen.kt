@@ -1013,7 +1013,9 @@ private fun SmartGeneratorDialog(
         generatedNumbers = vm.generateSmartNumbers(context, selectedStrategy)
     }
 
-    val analysis = remember(isHistoryLoading, context) { vm.getFrequencyAnalysis(context) }
+    val analysis = remember(isHistoryLoading, selectedStrategy.type, context) {
+        vm.getFrequencyAnalysis(context, recentCount = if (selectedStrategy.type == StrategyType.HOT_FOCUS) 50 else null)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1080,9 +1082,9 @@ private fun SmartGeneratorDialog(
                     }
                     Spacer(Modifier.height(12.dp))
 
-                // 전략 선택 칩
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                // 전략 선택 칩 (Column 세로 정렬)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     FilterChip(
@@ -1092,6 +1094,7 @@ private fun SmartGeneratorDialog(
                             regenerate()
                         },
                         label = { Text(stringResource(R.string.smartStrategyBalanced)) },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     FilterChip(
                         selected = selectedStrategy.type == StrategyType.HOT_FOCUS,
@@ -1100,6 +1103,7 @@ private fun SmartGeneratorDialog(
                             regenerate()
                         },
                         label = { Text(stringResource(R.string.smartStrategyHot)) },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     FilterChip(
                         selected = selectedStrategy.type == StrategyType.COLD_FOCUS,
@@ -1108,6 +1112,7 @@ private fun SmartGeneratorDialog(
                             regenerate()
                         },
                         label = { Text(stringResource(R.string.smartStrategyCold)) },
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 Spacer(Modifier.height(4.dp))
@@ -1138,7 +1143,7 @@ private fun SmartGeneratorDialog(
                 // 통계 요약 칩
                 val oddCount = generatedNumbers.count { it % 2 != 0 }
                 val evenCount = 6 - oddCount
-                val lowCount = generatedNumbers.count { it in 1..20 }
+                val lowCount = generatedNumbers.count { it in 1..22 }
                 val highCount = 6 - lowCount
                 val sum = generatedNumbers.sum()
 

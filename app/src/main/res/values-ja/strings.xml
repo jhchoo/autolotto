@@ -192,9 +192,9 @@
     <string name="smartGeneratorTitle">スマート番号推薦</string>
     <string name="smartGeneratorSubtitle">出現頻度と統計パターン(奇数/偶数、高低、末尾、連続番号)を反映して番号を生成します。</string>
     <string name="smartStrategyBalanced">⚖️ バランス推薦</string>
-    <string name="smartStrategyBalancedDesc">頻出(2) + 未出現(2) + 通常(2)</string>
+    <string name="smartStrategyBalancedDesc">合計130~180 · 奇偶/高低(1~22/23~45)</string>
     <string name="smartStrategyHot">🔥 頻出番号中心</string>
-    <string name="smartStrategyHotDesc">統計上よく出る番号(4)を中心に推薦</string>
+    <string name="smartStrategyHotDesc">直近50回でよく出ている番号を中心に推薦</string>
     <string name="smartStrategyCold">❄️ 長期未出現中心</string>
     <string name="smartStrategyColdDesc">長らく出ていない番号(4)を中心に推薦</string>
     <string name="smartAnalysisOddEven">奇偶 %1$d:%2$d</string>

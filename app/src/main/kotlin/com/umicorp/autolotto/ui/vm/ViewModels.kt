@@ -136,10 +136,17 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** 1000회~최신회차 실시간 당첨 통계 분석 정보 조회 */
-    fun getFrequencyAnalysis(context: android.content.Context): com.umicorp.autolotto.generator.FrequencyAnalysis {
+    /** 실시간 당첨 통계 분석 정보 조회 (recentCount 지정 시 최근 N회차 분석) */
+    fun getFrequencyAnalysis(
+        context: android.content.Context,
+        recentCount: Int? = null,
+    ): com.umicorp.autolotto.generator.FrequencyAnalysis {
         val history = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(context)
-        return com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyze(history)
+        return if (recentCount != null) {
+            com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, recentCount)
+        } else {
+            com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyze(history)
+        }
     }
 
     /** 지정한 전략과 분석 데이터에 맞춰 6개 로또 번호 1세트 생성 */
@@ -147,7 +154,11 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
         context: android.content.Context,
         strategy: com.umicorp.autolotto.generator.LottoStrategy = com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
     ): List<Int> {
-        val analysis = getFrequencyAnalysis(context)
+        val analysis = if (strategy.type == com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS) {
+            getFrequencyAnalysis(context, recentCount = 50)
+        } else {
+            getFrequencyAnalysis(context)
+        }
         return com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(strategy, analysis)
     }
 
@@ -157,7 +168,11 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
         count: Int,
         strategy: com.umicorp.autolotto.generator.LottoStrategy = com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
     ): List<List<Int>> {
-        val analysis = getFrequencyAnalysis(context)
+        val analysis = if (strategy.type == com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS) {
+            getFrequencyAnalysis(context, recentCount = 50)
+        } else {
+            getFrequencyAnalysis(context)
+        }
         val result = mutableListOf<List<Int>>()
         var attempts = 0
         while (result.size < count && attempts < 100) {
