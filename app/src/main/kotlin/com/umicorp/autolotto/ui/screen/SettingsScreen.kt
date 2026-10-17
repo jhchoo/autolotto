@@ -454,17 +454,18 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
             }
             Spacer(Modifier.height(24.dp))
 
-            // ===== 후원 =====
-            SettingsSection(stringResource(R.string.sectionDonation)) {
+            // ===== 당첨 번호 조회 =====
+            SettingsSection(stringResource(R.string.sectionWinningHistory)) {
                 ListItem(
-                    modifier = Modifier.clickable { openUrl(context, URL_DONATION) },
+                    modifier = Modifier.clickable { showWinningHistoryScreen = true },
                     colors = transparentListColors(),
-                    leadingContent = { Text("☕", style = MaterialTheme.typography.headlineSmall) },
-                    headlineContent = { Text(stringResource(R.string.donationTitle), fontWeight = FontWeight.Bold) },
+                    leadingContent = { SettingIcon(Icons.Rounded.ConfirmationNumber, LgAmber) },
+                    headlineContent = { Text(stringResource(R.string.winningHistoryTitle), fontWeight = FontWeight.Bold) },
                     trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 )
             }
             Spacer(Modifier.height(40.dp))
+
         }
     }
 
