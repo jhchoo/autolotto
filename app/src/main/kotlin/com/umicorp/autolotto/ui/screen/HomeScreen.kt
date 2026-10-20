@@ -45,6 +45,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -54,6 +56,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,6 +79,9 @@ import com.umicorp.autolotto.ui.util.formatNumber
 import com.umicorp.autolotto.ui.util.formatPurchaseSchedule
 import com.umicorp.autolotto.ui.util.launchActivitySafely
 import com.umicorp.autolotto.ui.vm.HomeViewModel
+import com.umicorp.autolotto.ui.vm.NumberViewModel
+import com.umicorp.autolotto.ui.vm.NumberViewModel.InstantState
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.Duration
@@ -102,9 +108,25 @@ fun HomeScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Unit) {
     val winning by vm.winning.collectAsState()
     val loadingNumbers by vm.loadingNumbers.collectAsState()
 
+    val numVm: NumberViewModel = appViewModel()
+    val instantState by numVm.instantState.collectAsState()
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    LaunchedEffect(instantState) {
+        if (instantState is InstantState.NeedsSetup) {
+            val msg = context.resources.getString(R.string.instantNeedsSetup)
+            scope.launch { snackbar.showSnackbar(msg) }
+            numVm.dismissInstant()
+        }
+    }
+    InstantPurchaseDialogs(instantState, numVm)
+
     Scaffold(
         modifier = modifier,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.appTitle), fontWeight = FontWeight.ExtraBold) },
@@ -182,6 +204,25 @@ fun HomeScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Unit) {
                 CtaButton(onClick = onNavigateToNumbers) {
                     Text(
                         stringResource(R.string.buttonSetupNumbers),
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                CtaButton(
+                    onClick = {
+                        if (!isLoggedIn) {
+                            val msg = context.resources.getString(R.string.hintLoginRequired)
+                            scope.launch { snackbar.showSnackbar(msg) }
+                        } else {
+                            numVm.onInstantTap()
+                        }
+                    },
+                    enabled = isLoggedIn,
+                ) {
+                    Text(
+                        stringResource(R.string.buttonInstantPurchase),
                         color = Color.White,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,

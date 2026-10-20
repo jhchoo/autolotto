@@ -696,8 +696,9 @@ private fun NumberGrid(selected: Set<Int>, onToggle: (Int) -> Unit) {
             val ballSize = (maxWidth - gap * 5) / 6
             FlowRow(
                 maxItemsInEachRow = 6,
-                horizontalArrangement = Arrangement.spacedBy(gap),
+                horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
                 verticalArrangement = Arrangement.spacedBy(gap),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 for (n in 1..45) {
                     LottoBall(
@@ -908,7 +909,7 @@ private fun InstantPurchaseCta(
 
 /** 즉시 구매 다이얼로그 — InstantState별 확인/게임수선택/진행/결과/에러. */
 @Composable
-private fun InstantPurchaseDialogs(state: InstantState, vm: NumberViewModel) {
+fun InstantPurchaseDialogs(state: InstantState, vm: NumberViewModel) {
     when (state) {
         is InstantState.ConfirmingFirst -> AlertDialog(
             onDismissRequest = { vm.dismissInstant() },
