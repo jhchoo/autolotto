@@ -44,7 +44,7 @@
     <string name="autoNumberTitle">자동 번호</string>
     <string name="autoNumberSubtitle">매주 랜덤으로 생성됩니다</string>
     <string name="smartSlotTitle">스마트 번호 모드</string>
-    <string name="smartSlotSubtitle">매번 구매할 때마다 3가지 스마트 전략(균형/자주나온번호/미출현) 중 하나가 무작위 선택되어 자동 생성됩니다.</string>
+    <string name="smartSlotSubtitle">매번 스마트 전략 무작위 선택됩니다.</string>
     <string name="buttonAllAuto">전부 자동</string>
     <string name="buttonReset">초기화</string>
     <string name="buttonConfirmGame">게임 %1$s 확정 ✓</string>

@@ -358,7 +358,7 @@ private fun GameRow(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 nums.forEach { n ->
                     val isMatch = winningNumbers?.contains(n) == true
-                    val isBonusMatch = bonusNumber != null && bonusNumber == n
+                    val isBonusMatch = bonusNumber != null && bonusNumber == n && gameRank == "rank2"
                     LottoBall(
                         n = n,
                         size = ball,

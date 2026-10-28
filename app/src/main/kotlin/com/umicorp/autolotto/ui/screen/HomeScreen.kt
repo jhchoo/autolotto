@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.AddCard
 import androidx.compose.material.icons.rounded.Autorenew
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.PauseCircleOutline
@@ -93,13 +94,17 @@ import java.time.LocalDateTime
  * 스태거 팝인) · 예치금 잔액(틸 컬러 드렌치) · 자동구매 상태(그린 톤얼) · 네이비 CTA.
  */
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Unit) {
+fun HomeScreen(
+    modifier: Modifier = Modifier,
+    onNavigateToSettings: () -> Unit = {},
+) {
     val vm: HomeViewModel = appViewModel()
     val isLoggedIn by vm.isLoggedIn.collectAsState()
     val autoLoginFailed by vm.autoLoginFailed.collectAsState()
     val hydrationFailed by vm.hydrationFailed.collectAsState()
     val balance by vm.balance.collectAsState()
     val autoEnabled by vm.autoEnabled.collectAsState()
+    val autoGames by vm.autoGames.collectAsState()
     val day by vm.autoPurchaseDay.collectAsState()
     val hour by vm.autoPurchaseHour.collectAsState()
     val minute by vm.autoPurchaseMinute.collectAsState()
@@ -198,18 +203,10 @@ fun HomeScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Unit) {
                 WinningNumbers(winning, loadingNumbers)
                 Spacer(Modifier.height(24.dp))
                 BalanceCard(balance, alertEnabled, threshold)
-                Spacer(Modifier.height(16.dp))
-                AutoStatusCard(autoEnabled, day, hour, minute)
-                Spacer(Modifier.height(20.dp))
-                CtaButton(onClick = onNavigateToNumbers) {
-                    Text(
-                        stringResource(R.string.buttonSetupNumbers),
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
                 Spacer(Modifier.height(12.dp))
+                AutoStatusCard(autoEnabled, day, hour, minute, onNavigateToSettings)
+                Spacer(Modifier.height(12.dp))
+                val canPurchase = autoGames > 0
                 CtaButton(
                     onClick = {
                         if (!isLoggedIn) {
@@ -219,10 +216,11 @@ fun HomeScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Unit) {
                             numVm.onInstantTap()
                         }
                     },
-                    enabled = isLoggedIn,
+                    enabled = isLoggedIn && canPurchase,
                 ) {
                     Text(
-                        stringResource(R.string.buttonInstantPurchase),
+                        if (canPurchase) stringResource(R.string.buttonInstantPurchase)
+                        else "번호 설정 후 바로 구매가능",
                         color = Color.White,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
@@ -431,13 +429,22 @@ private fun BalanceCard(balance: Int, alertEnabled: Boolean, threshold: Int) {
 }
 
 @Composable
-private fun AutoStatusCard(autoEnabled: Boolean, day: Int, hour: Int, minute: Int) {
+private fun AutoStatusCard(
+    autoEnabled: Boolean,
+    day: Int,
+    hour: Int,
+    minute: Int,
+    onNavigateToSettings: () -> Unit,
+) {
     val subtitle = if (autoEnabled) stringResource(
         R.string.autoPurchaseSchedule,
         formatPurchaseSchedule(day, hour, minute),
     ) else stringResource(R.string.enableInSettings)
     val accent = if (autoEnabled) LgGreen else LgMuted
-    TonalCard(accent = accent) {
+    TonalCard(
+        accent = accent,
+        modifier = if (!autoEnabled) Modifier.clickable { onNavigateToSettings() } else Modifier,
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             GlossyIconTile(
                 icon = if (autoEnabled) Icons.Rounded.Autorenew else Icons.Rounded.PauseCircleOutline,
@@ -445,7 +452,7 @@ private fun AutoStatusCard(autoEnabled: Boolean, day: Int, hour: Int, minute: In
                 size = 44.dp,
             )
             Spacer(Modifier.width(14.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     if (autoEnabled) stringResource(R.string.autoPurchaseEnabled)
                     else stringResource(R.string.autoPurchaseDisabled),
@@ -456,6 +463,13 @@ private fun AutoStatusCard(autoEnabled: Boolean, day: Int, hour: Int, minute: In
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!autoEnabled) {
+                Icon(
+                    Icons.Rounded.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

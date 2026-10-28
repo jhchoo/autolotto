@@ -125,11 +125,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
     val vm: NumberViewModel = appViewModel()
     val autoEnabled by vm.autoEnabled.collectAsState()
     val loaded by vm.games.collectAsState()
-    val gamesLoaded by vm.gamesLoaded.collectAsState()
     val gamesLoadFailed by vm.gamesLoadFailed.collectAsState()
-    val day by vm.autoPurchaseDay.collectAsState()
-    val hour by vm.autoPurchaseHour.collectAsState()
-    val minute by vm.autoPurchaseMinute.collectAsState()
     val isLoggedIn by vm.isLoggedIn.collectAsState()
     val lastRound by vm.lastPurchasedRound.collectAsState()
     val instantState by vm.instantState.collectAsState()
@@ -139,10 +135,8 @@ fun NumberScreen(modifier: Modifier = Modifier) {
     var initialized by remember { mutableStateOf(false) }
     var currentSlot by remember { mutableStateOf(0) }
 
-    val configuredCount = games.count { it != null }
     val serverHealth by vm.serverHealth.collectAsState()
     val context = LocalContext.current
-    val schedule = formatPurchaseSchedule(day, hour, minute)
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
@@ -152,7 +146,6 @@ fun NumberScreen(modifier: Modifier = Modifier) {
 
     var slotMode by remember { mutableStateOf(SlotMode.MANUAL) }
     var selected by remember { mutableStateOf(emptySet<Int>()) }
-    var saved by remember { mutableStateOf(true) }
 
     fun syncEditorToSlot() {
         val current = games[currentSlot]
@@ -171,7 +164,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             SlotMode.SMART -> listOf(-1)
             SlotMode.MANUAL -> selected.sorted()
         }
-        saved = false
+        vm.saveConfig(games.toList())
         if (currentSlot < 4) currentSlot++
         syncEditorToSlot()
         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -206,7 +199,8 @@ fun NumberScreen(modifier: Modifier = Modifier) {
         if (rollingAllAuto) {
             delay(950)
             for (i in 0 until 5) games[i] = emptyList()
-            selected = emptySet(); slotMode = SlotMode.AUTO; saved = false
+            selected = emptySet(); slotMode = SlotMode.AUTO
+            vm.saveConfig(games.toList())
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             rollingAllAuto = false
         }
@@ -222,7 +216,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                 selected = numberSet.toSet()
                 slotMode = SlotMode.MANUAL
                 games[currentSlot] = numberSet.sorted()
-                saved = false
+                vm.saveConfig(games.toList())
                 showSmartDialog = false
             },
             onApplyAllEmpty = { generatedSets ->
@@ -234,7 +228,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     }
                 }
                 syncEditorToSlot()
-                saved = false
+                vm.saveConfig(games.toList())
                 showSmartDialog = false
             },
         )
@@ -344,9 +338,35 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(4.dp))
 
-            // 전부 자동
+            // 전부 자동 / 전부 초기화
+            val hasAnyConfirmed = games.any { it != null }
             val allAuto = games.all { it != null && it.isEmpty() }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (hasAnyConfirmed) {
+                    TextButton(
+                        onClick = {
+                            for (i in 0 until 5) games[i] = null
+                            selected = emptySet()
+                            slotMode = SlotMode.MANUAL
+                            vm.saveConfig(games.toList())
+                            syncEditorToSlot()
+                        },
+                    ) {
+                        Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            "초기화",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                } else {
+                    Spacer(Modifier.width(1.dp))
+                }
                 TextButton(
                     onClick = { rollingAllAuto = true },
                     enabled = !allAuto && !rollingAllAuto,
@@ -392,7 +412,12 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
-                    onClick = { selected = emptySet(); games[currentSlot] = null; slotMode = SlotMode.MANUAL; saved = false },
+                    onClick = {
+                        selected = emptySet()
+                        games[currentSlot] = null
+                        slotMode = SlotMode.MANUAL
+                        vm.saveConfig(games.toList())
+                    },
                     modifier = Modifier.weight(1f).height(56.dp),
                     shape = CircleShape,
                 ) { Text(stringResource(R.string.buttonReset), fontWeight = FontWeight.SemiBold) }
@@ -418,54 +443,13 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                 currentSlot = currentSlot,
                 onRemove = { i ->
                     games[i] = null
-                    saved = false
+                    vm.saveConfig(games.toList())
                     // 현재 슬롯을 지우면 편집기(토글·그리드)도 함께 비운다(P1).
                     if (i == currentSlot) syncEditorToSlot()
                 },
             )
             Spacer(Modifier.height(16.dp))
 
-            // 저장 — 저장 완료/대기 색 전환을 부드럽게(animateColorAsState).
-            val saveContainer by animateColorAsState(
-                if (saved) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
-                label = "saveContainer",
-            )
-            val saveContent by animateColorAsState(
-                if (saved) MaterialTheme.colorScheme.onTertiary else MaterialTheme.colorScheme.onPrimary,
-                label = "saveContent",
-            )
-            // 0게임(구매 안 함)도 유효한 저장 — 비활성화하면 전부 삭제가 저장소에 반영될 길이 없다(P2).
-            // 단, 최초 로드 성공 전엔 차단 — 빈 초기 슬롯이 실데이터를 덮어쓰는 유실 방지(crosscheck R2).
-            Button(
-                enabled = gamesLoaded,
-                onClick = {
-                    val count = games.count { it != null }
-                    vm.saveConfig(games.toList())
-                    saved = true
-                    scope.launch {
-                        val msg = if (count == 0) context.resources.getString(R.string.snackbarSaveEmpty)
-                        else context.resources.getString(R.string.snackbarSaveSuccess, count, schedule)
-                        snackbar.showSnackbar(msg)
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = saveContainer,
-                    contentColor = saveContent,
-                ),
-            ) {
-                Icon(if (saved) Icons.Rounded.CheckCircle else Icons.Rounded.Save, null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    when {
-                        saved -> stringResource(R.string.buttonSaveDone)
-                        configuredCount == 0 -> stringResource(R.string.buttonSaveEmpty)
-                        else -> stringResource(R.string.buttonSaveGames, configuredCount)
-                    },
-                    fontWeight = FontWeight.Bold,
-                )
-            }
             if (gamesLoadFailed) {
                 TextButton(
                     onClick = { vm.loadSavedGames() },
@@ -480,20 +464,18 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(12.dp))
 
+            val localAutoGames = games.count { it?.isEmpty() == true }
+            val localManualGames = games.count { it?.isNotEmpty() == true }
             // 즉시 구매 — 저장된 슬롯으로 지금 결제(설정 → 저장 → 구매 흐름). 미저장 변경은 저장 유도.
             InstantPurchaseCta(
                 isLoggedIn = isLoggedIn,
                 serverHealth = serverHealth,
                 purchasedThisRound = lastRound >= vm.currentRound,
                 saleOpen = vm.isSaleOpenNow(),
+                autoGames = localAutoGames,
+                manualGames = localManualGames,
                 onTap = {
-                    // 저장 상태 요구는 첫 구매만 — 추가 구매(자동 N게임)는 저장 슬롯을 쓰지 않는다.
-                    if (!saved && lastRound < vm.currentRound) {
-                        val msg = context.resources.getString(R.string.instantNeedsSetup)
-                        scope.launch { snackbar.showSnackbar(msg) }
-                    } else {
-                        vm.onInstantTap()
-                    }
+                    vm.onInstantTap()
                 },
             )
             Spacer(Modifier.height(24.dp))
@@ -887,12 +869,16 @@ private fun InstantPurchaseCta(
     serverHealth: com.umicorp.autolotto.dhlottery.ServerHealth,
     purchasedThisRound: Boolean,
     saleOpen: Boolean,
+    autoGames: Int,
+    manualGames: Int,
     onTap: () -> Unit,
 ) {
+    val canPurchase = autoGames > 0 || manualGames > 0
     val disabledLabel = when {
         serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online -> stringResource(R.string.maintenancePurchaseDisabled)
         !isLoggedIn -> stringResource(R.string.hintLoginRequired)
         !saleOpen -> stringResource(R.string.instantNotSaleTime)
+        !canPurchase -> "번호 설정 후 바로 구매가능"
         else -> null
     }
     CtaButton(onClick = onTap, enabled = disabledLabel == null) {

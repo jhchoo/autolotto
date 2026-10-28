@@ -29,6 +29,9 @@ object SecureKeys {
     /** 네이티브 전용 — 회차 가드의 계정 스코프(구매한 계정 ID). ALL(이관 목록) 미포함. */
     const val LAST_PURCHASE_OWNER = "last_purchase_owner"
 
+    /** 로그인 팝업 편의용 마지막 로그인 ID */
+    const val LAST_USER_ID = "last_user_id"
+
     /** 마이그레이션·일괄 처리용 전체 키 목록. */
     val ALL = listOf(
         USER_ID, PASSWORD, AUTO_ENABLED, AUTO_GAMES, MANUAL_NUMBERS,
@@ -233,6 +236,10 @@ class SecureStore(context: Context) {
     fun setLastPurchaseOwner(userId: String) = putString(SecureKeys.LAST_PURCHASE_OWNER, userId)
 
     fun getLastPurchaseOwner(): String? = read(SecureKeys.LAST_PURCHASE_OWNER)
+
+    fun setLastUserId(userId: String) = putString(SecureKeys.LAST_USER_ID, userId)
+
+    fun getLastUserId(): String? = read(SecureKeys.LAST_USER_ID)
 
     // === 전체 초기화 ===
 

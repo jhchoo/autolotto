@@ -75,6 +75,9 @@ class AppContainer(context: Context) {
     private val _autoEnabled = MutableStateFlow(false)
     val autoEnabled: StateFlow<Boolean> = _autoEnabled.asStateFlow()
 
+    private val _lastUserId = MutableStateFlow<String?>(null)
+    val lastUserId: StateFlow<String?> = _lastUserId.asStateFlow()
+
     private val _autoGames = MutableStateFlow(0)
     val autoGames: StateFlow<Int> = _autoGames.asStateFlow()
 
@@ -142,6 +145,7 @@ class AppContainer(context: Context) {
         val language = store.getLanguage()
         val userId = store.getCredentials().userId
         val lastRound = store.getLastPurchasedRound()
+        val lastUsedId = store.getLastUserId()
 
         _autoEnabled.value = autoEnabled
         _autoGames.value = autoGames
@@ -152,6 +156,7 @@ class AppContainer(context: Context) {
         _balanceAlertThreshold.value = alertThreshold
         _language.value = language
         _loggedInUserId.value = userId
+        _lastUserId.value = lastUsedId
         _lastPurchasedRound.value = lastRound
         // 앱 실행마다 알람 재무장(자동구매 활성 시). 업데이트·강제종료·OEM 정리로 소실된 알람 복구 — 멱등.
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
@@ -268,12 +273,18 @@ class AppContainer(context: Context) {
     // === 계정 ===
 
     /** 수동 로그인(설정 화면). 실패 시 throw(INVALID_CREDENTIALS 등) — 호출자가 매핑. 잔액알림은 안 함(원본과 동일). */
-    suspend fun login(id: String, pw: String) {
+    suspend fun login(id: String, pw: String, saveId: Boolean = true) {
         loginMutex.withLock { auth.login(id, pw) }  // 락 해제 후 PurchaseLock — 중첩 금지(락 순서 규칙)
         // 로컬 계정 전환 커밋은 구매 임계구역과 직렬화(PurchaseLock) — 워커 구매와 경합 방지.
         // 회차 가드는 계정의 기록 — 다른 계정 로그인 시 무효화(같은 계정 재로그인은 보존).
         PurchaseLock.mutex.withLock {
-            store.saveCredentials(id, pw)
+            if (saveId) {
+                store.saveCredentials(id, pw)
+            } else {
+                store.deleteCredentials()
+            }
+            store.setLastUserId(id)
+            _lastUserId.value = id
             val owner = store.getLastPurchaseOwner()
             if (owner != null && owner != id) {
                 store.setLastPurchasedRound(0)

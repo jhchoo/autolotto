@@ -51,6 +51,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     val autoPurchaseDay = container.autoPurchaseDay
     val autoPurchaseHour = container.autoPurchaseHour
     val autoPurchaseMinute = container.autoPurchaseMinute
+    val autoGames = container.autoGames
     val balanceAlertEnabled = container.balanceAlertEnabled
     val balanceAlertThreshold = container.balanceAlertThreshold
 
@@ -433,6 +434,8 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val isLoggedIn = container.isLoggedIn
     val balance = container.balance
     val autoEnabled = container.autoEnabled
+    val lastUserId = container.lastUserId
+    val loggedInUserId = container.loggedInUserId
     val autoGames = container.autoGames
     val autoPurchaseDay = container.autoPurchaseDay
     val autoPurchaseHour = container.autoPurchaseHour
@@ -440,8 +443,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val balanceAlertEnabled = container.balanceAlertEnabled
     val balanceAlertThreshold = container.balanceAlertThreshold
     val language = container.language
-    val loggedInUserId = container.loggedInUserId
-
+    
     private val _isHistoryLoading = MutableStateFlow(false)
     val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
 
@@ -500,14 +502,32 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState.asStateFlow()
 
-    fun login(id: String, pw: String) {
+    fun hasCredentials(): Boolean = container.store.hasCredentials()
+    
+    fun loginWithSavedCredentials() {
+        viewModelScope.launch {
+            _loginState.value = LoginState.InProgress
+            _loginState.value = try {
+                val cred = container.store.getCredentials()
+                val u = cred.userId ?: throw IllegalArgumentException("No ID")
+                val p = cred.password ?: throw IllegalArgumentException("No PW")
+                container.login(u, p)
+                LoginState.Success
+            } catch (e: Exception) {
+                if ((e.message ?: "").contains("INVALID_CREDENTIALS")) LoginState.InvalidCredentials
+                else LoginState.Error
+            }
+        }
+    }
+
+    fun login(id: String, pw: String, saveId: Boolean = true) {
         val u = id.trim()
         val p = pw.trim()
         if (u.isEmpty() || p.isEmpty()) return
         viewModelScope.launch {
             _loginState.value = LoginState.InProgress
             _loginState.value = try {
-                container.login(u, p)
+                container.login(u, p, saveId)
                 LoginState.Success
             } catch (e: Exception) {
                 if ((e.message ?: "").contains("INVALID_CREDENTIALS")) LoginState.InvalidCredentials

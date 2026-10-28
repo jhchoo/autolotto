@@ -471,9 +471,11 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
 
     // ===== 다이얼로그 =====
     if (showLogin) {
+        val lastUserId by vm.lastUserId.collectAsState()
         LoginDialog(
+            initialId = lastUserId ?: "",
             onDismiss = { showLogin = false },
-            onLogin = { id, pw -> vm.login(id, pw) },
+            onLogin = { id, pw, save -> vm.login(id, pw, save) },
         )
     }
     if (showReset) {
@@ -635,10 +637,11 @@ private fun PermissionRow(icon: ImageVector, title: String, desc: String, grante
 }
 
 @Composable
-private fun LoginDialog(onDismiss: () -> Unit, onLogin: (String, String) -> Unit) {
-    var id by remember { mutableStateOf("") }
+private fun LoginDialog(initialId: String, onDismiss: () -> Unit, onLogin: (String, String, Boolean) -> Unit) {
+    var id by remember { mutableStateOf(initialId) }
     var pw by remember { mutableStateOf("") }
     var showPw by remember { mutableStateOf(false) }
+    var saveId by remember { mutableStateOf(true) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.dialogLoginTitle)) },
@@ -673,12 +676,27 @@ private fun LoginDialog(onDismiss: () -> Unit, onLogin: (String, String) -> Unit
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { saveId = !saveId }
+                        .padding(vertical = 8.dp)
+                ) {
+                    androidx.compose.material3.Checkbox(
+                        checked = saveId,
+                        onCheckedChange = { saveId = it }
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("아이디 저장하기")
+                }
             }
         },
         confirmButton = {
             TextButton(
                 enabled = id.isNotBlank() && pw.isNotBlank(),
-                onClick = { onLogin(id.trim(), pw.trim()); onDismiss() },
+                onClick = { onLogin(id.trim(), pw.trim(), saveId); onDismiss() },
             ) { Text(stringResource(R.string.buttonLogin)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.buttonCancel)) } },
