@@ -817,10 +817,10 @@ fun WinningHistoryScreen(
 
     val latestStored = remember(isHistoryLoading, context) { vm.getLatestStoredRound(context) }
 
-    var startRoundText by remember(latestStored) { mutableStateOf((maxOf(1, latestStored - 9)).toString()) }
+    var startRoundText by remember(latestStored) { mutableStateOf((maxOf(1, latestStored - 19)).toString()) }
     var endRoundText by remember(latestStored) { mutableStateOf(latestStored.toString()) }
 
-    var queryStartRound by remember(latestStored) { mutableIntStateOf(maxOf(1, latestStored - 9)) }
+    var queryStartRound by remember(latestStored) { mutableIntStateOf(maxOf(1, latestStored - 19)) }
     var queryEndRound by remember(latestStored) { mutableIntStateOf(latestStored) }
 
     fun doSearch() {
