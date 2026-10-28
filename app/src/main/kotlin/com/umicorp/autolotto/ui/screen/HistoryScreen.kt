@@ -260,7 +260,7 @@ private fun HistoryCard(item: Purchase, index: Int) {
                 when {
                     !item.checked -> StatusPill(stringResource(R.string.statusPending), PillTone.Pending)
                     winner -> StatusPill(
-                        stringResource(R.string.rankWithEmoji, localizedRank(item.rank ?: "nowin")),
+                        stringResource(R.string.rankWithEmoji, localizedRank(item.rank)),
                         PillTone.Win,
                     )
                     else -> StatusPill(stringResource(R.string.statusNoWin), PillTone.Lose)
