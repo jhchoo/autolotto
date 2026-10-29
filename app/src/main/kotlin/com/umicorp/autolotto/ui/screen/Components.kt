@@ -43,11 +43,14 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.umicorp.autolotto.R
+import com.umicorp.autolotto.dhlottery.ServerHealth
 import com.umicorp.autolotto.ui.theme.LgAmber
 import com.umicorp.autolotto.ui.theme.MotionSpecs
 import com.umicorp.autolotto.ui.theme.ctaGradient
@@ -404,3 +407,36 @@ fun Modifier.creamPageBackground(): Modifier {
         ),
     )
 }
+
+/** 즉시 구매 프라이머리 CTA (홈·번호 탭 공유). 비활성 사유(점검 > 로그인 > 판매시간 > 번호미설정)를 라벨로 표시, 구매완료 회차엔 "추가 구매". */
+@Composable
+fun InstantPurchaseCta(
+    isLoggedIn: Boolean,
+    serverHealth: ServerHealth,
+    purchasedThisRound: Boolean,
+    saleOpen: Boolean,
+    autoGames: Int,
+    manualGames: Int = 0,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val canPurchase = autoGames > 0 || manualGames > 0
+    val disabledLabel = when {
+        serverHealth !is ServerHealth.Online -> stringResource(R.string.maintenancePurchaseDisabled)
+        !isLoggedIn -> stringResource(R.string.hintLoginRequired)
+        !saleOpen -> stringResource(R.string.instantNotSaleTime)
+        !canPurchase -> "번호 설정 후 바로 구매가능"
+        else -> null
+    }
+    CtaButton(onClick = onTap, enabled = disabledLabel == null, modifier = modifier) {
+        Text(
+            disabledLabel ?: stringResource(
+                if (purchasedThisRound) R.string.buttonExtraPurchase else R.string.buttonInstantPurchase,
+            ),
+            color = Color.White,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+

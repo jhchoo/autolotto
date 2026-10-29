@@ -112,6 +112,7 @@ fun HomeScreen(
     val threshold by vm.balanceAlertThreshold.collectAsState()
     val winning by vm.winning.collectAsState()
     val loadingNumbers by vm.loadingNumbers.collectAsState()
+    val lastRound by vm.lastPurchasedRound.collectAsState()
 
     val numVm: NumberViewModel = appViewModel()
     val instantState by numVm.instantState.collectAsState()
@@ -206,26 +207,15 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
                 AutoStatusCard(autoEnabled, day, hour, minute, onNavigateToSettings)
                 Spacer(Modifier.height(12.dp))
-                val canPurchase = autoGames > 0
-                CtaButton(
-                    onClick = {
-                        if (!isLoggedIn) {
-                            val msg = context.resources.getString(R.string.hintLoginRequired)
-                            scope.launch { snackbar.showSnackbar(msg) }
-                        } else {
-                            numVm.onInstantTap()
-                        }
-                    },
-                    enabled = isLoggedIn && canPurchase,
-                ) {
-                    Text(
-                        if (canPurchase) stringResource(R.string.buttonInstantPurchase)
-                        else "번호 설정 후 바로 구매가능",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                InstantPurchaseCta(
+                    isLoggedIn = isLoggedIn,
+                    serverHealth = serverHealth,
+                    purchasedThisRound = lastRound >= vm.currentRound,
+                    saleOpen = numVm.isSaleOpenNow(),
+                    autoGames = autoGames,
+                    manualGames = 0,
+                    onTap = { numVm.onInstantTap() },
+                )
             }
         }
     }

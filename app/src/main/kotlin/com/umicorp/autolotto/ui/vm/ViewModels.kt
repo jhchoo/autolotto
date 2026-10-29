@@ -54,6 +54,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     val autoGames = container.autoGames
     val balanceAlertEnabled = container.balanceAlertEnabled
     val balanceAlertThreshold = container.balanceAlertThreshold
+    val lastPurchasedRound = container.lastPurchasedRound
 
     /** 현재 판매 중인 회차(KST). 카운트다운 헤더용. */
     val currentRound: Int get() = PurchaseService.getCurrentRound()
@@ -75,10 +76,13 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** 당겨서 새로고침: 당첨번호 + 잔액. */
+    /** 당겨서 새로고침: 당첨번호 + 잔액 + 구매회차. */
     fun refreshAll() {
         fetchWinningNumbers()
-        viewModelScope.launch { container.refreshBalance() }
+        viewModelScope.launch {
+            container.refreshBalance()
+            container.refreshLastPurchasedRound()
+        }
     }
 }
 
