@@ -76,9 +76,10 @@ object SmartNumberGenerator {
     ): List<Int> {
         val hotPool = analysis?.hotNumbers ?: HOT_NUMBERS
         val coldPool = analysis?.coldNumbers ?: COLD_NUMBERS
+        val normalPool = analysis?.normalNumbers ?: NORMAL_NUMBERS
 
         repeat(maxAttempts) {
-            val candidate = pickCandidateNumbers(strategy, hotPool, coldPool, random)
+            val candidate = pickCandidateNumbers(strategy, hotPool, coldPool, normalPool, random)
             if (candidate.size == 6 && validateAllConstraints(candidate, strategy)) {
                 return candidate.sorted()
             }
@@ -95,26 +96,39 @@ object SmartNumberGenerator {
         strategy: LottoStrategy,
         hotPool: List<Int>,
         coldPool: List<Int>,
+        normalPool: List<Int>,
         random: Random,
     ): List<Int> {
         val selected = mutableSetOf<Int>()
 
+        // 1. Hot 풀에서 hotCount만큼 추출
         val hShuffled = hotPool.shuffled(random)
         for (n in hShuffled) {
             if (selected.size >= strategy.hotCount) break
             selected.add(n)
         }
 
-        val cShuffled = coldPool.shuffled(random)
+        // 2. Cold 풀에서 coldCount만큼 추출 (중복 제외)
+        val cShuffled = coldPool.filter { it !in selected }.shuffled(random)
         for (n in cShuffled) {
             if (selected.size >= (strategy.hotCount + strategy.coldCount)) break
             selected.add(n)
         }
 
-        val remaining = (1..45).filter { it !in selected }.shuffled(random)
-        for (n in remaining) {
-            if (selected.size >= 6) break
+        // 3. Normal 풀에서 randomCount만큼 추출 (중복 제외)
+        val nShuffled = normalPool.filter { it !in selected }.shuffled(random)
+        for (n in nShuffled) {
+            if (selected.size >= (strategy.hotCount + strategy.coldCount + strategy.randomCount)) break
             selected.add(n)
+        }
+
+        // 4. 풀이 부족할 경우 전체 번호에서 보충
+        if (selected.size < 6) {
+            val remaining = (1..45).filter { it !in selected }.shuffled(random)
+            for (n in remaining) {
+                if (selected.size >= 6) break
+                selected.add(n)
+            }
         }
 
         return selected.toList()
@@ -179,5 +193,31 @@ object SmartNumberGenerator {
     fun isValidSumRange(numbers: List<Int>, minSum: Int = 130, maxSum: Int = 180): Boolean {
         val sum = numbers.sum()
         return sum in minSum..maxSum
+    }
+
+    /** 최대 연속 번호 개수 계산 (예: [10, 11] -> 2, [1, 3, 5] -> 1) */
+    fun getMaxConsecutive(numbers: List<Int>): Int {
+        if (numbers.isEmpty()) return 0
+        val sorted = numbers.sorted()
+        var maxConsecutive = 1
+        var currentConsecutive = 1
+        for (i in 0 until sorted.size - 1) {
+            if (sorted[i + 1] == sorted[i] + 1) {
+                currentConsecutive++
+                if (currentConsecutive > maxConsecutive) {
+                    maxConsecutive = currentConsecutive
+                }
+            } else {
+                currentConsecutive = 1
+            }
+        }
+        return maxConsecutive
+    }
+
+    /** 동일 끝자리 최대 중복 개수 계산 (예: [7, 17] -> 2) */
+    fun getMaxSameLastDigit(numbers: List<Int>): Int {
+        if (numbers.isEmpty()) return 0
+        val lastDigitCounts = numbers.groupBy { it % 10 }
+        return lastDigitCounts.values.maxOfOrNull { it.size } ?: 1
     }
 }

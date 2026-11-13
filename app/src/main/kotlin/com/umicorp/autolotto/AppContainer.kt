@@ -616,8 +616,8 @@ fun resolveSlotsForPurchase(
             s.isEmpty() -> autoCount++
             s.size == 1 && s[0] == -1 -> {
                 val randomStrategy = strategies.random()
-                // 스마트 추천시 최근 200회 정보만을 사용
-                val analysis = com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, 200)
+                // 스마트 추천시 최근 100회 정보만을 사용
+                val analysis = com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, 100)
                 val generated = com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(randomStrategy, analysis)
                 manualNumbers.add(generated)
             }

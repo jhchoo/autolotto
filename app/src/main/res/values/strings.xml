@@ -199,16 +199,23 @@
     <!-- 스마트 번호 추천 -->
     <string name="buttonSmartGenerate">✨ 스마트 번호 추천</string>
     <string name="smartGeneratorTitle">스마트 번호 추천</string>
-    <string name="smartGeneratorSubtitle">출현 빈도 및 통계 패턴 추천합니다.</string>
+    <string name="smartGeneratorSubtitle">최근100회, 6가지 통계 패턴 필터링을 적용</string>
     <string name="smartStrategyBalanced">⚖️ 균형 추천</string>
-    <string name="smartStrategyBalancedDesc">합계 130~180 · 홀짝/고저(1~22/23~45) 3:3·4:2·2:4</string>
+    <string name="smartStrategyBalancedDesc">자주 나온 번호 2 + 적게 나온 번호 2 + 일반 2 균형 조합</string>
     <string name="smartStrategyHot">🔥 자주 나온 번호 위주</string>
-    <string name="smartStrategyHotDesc">최근 50회 기준 자주 나온 번호 중심 추천</string>
+    <string name="smartStrategyHotDesc">최근 100회를 기준으로 자주 나온 번호(4개) 중심 추천</string>
     <string name="smartStrategyCold">❄️ 장기 미출현 위주</string>
-    <string name="smartStrategyColdDesc">오랫동안 나오지 않은 번호(4) 중심 추천</string>
+    <string name="smartStrategyColdDesc">최근 100회를 기준으로 적게 나온 번호(4개) 중심 추천</string>
+    <string name="smartGuideTitle">💡 추천 근거 및 통계 필터링 조건</string>
+    <string name="smartGuideBalancedCondition">· 번호 구성: 최근 100회 자주 나온 번호 2 + 적게 나온 번호 2 + 일반 2\n· 총합 범위: 130 ~ 180 (당첨 다빈도 구간)\n· 홀짝 비율: 3:3 · 4:2 · 2:4 (극단적 홀/짝 배제)\n· 저고 비율: 3:3 · 4:2 · 2:4 (1~22 저 / 23~45 고)\n· 연속 번호: 최대 2연속 이하 (3연속 이상 번호 배제)\n· 동일 끝수: 끝자리 최대 2개 이하 (동일 끝자리 3개 이상 배제)</string>
+    <string name="smartGuideHotCondition">· 번호 구성: 최근 100회 최다 출현 번호 4 + 적게 나온 번호 1 + 일반 1\n· 총합 범위: 130 ~ 180 (당첨 다빈도 구간)\n· 홀짝 비율: 3:3 · 4:2 · 2:4 (극단적 홀/짝 배제)\n· 저고 비율: 3:3 · 4:2 · 2:4 (1~22 저 / 23~45 고)\n· 연속 번호: 최대 2연속 이하 (3연속 이상 번호 배제)\n· 동일 끝수: 끝자리 최대 2개 이하 (동일 끝자리 3개 이상 배제)</string>
+    <string name="smartGuideColdCondition">· 번호 구성: 최근 100회 적게 나온 번호 4 + 자주 나온 번호 1 + 일반 1\n· 총합 범위: 130 ~ 180 (당첨 다빈도 구간)\n· 홀짝 비율: 3:3 · 4:2 · 2:4 (극단적 홀/짝 배제)\n· 저고 비율: 3:3 · 4:2 · 2:4 (1~22 저 / 23~45 고)\n· 연속 번호: 최대 2연속 이하 (3연속 이상 번호 배제)\n· 동일 끝수: 끝자리 최대 2개 이하 (동일 끝자리 3개 이상 배제)</string>
     <string name="smartAnalysisOddEven">홀짝 %1$d:%2$d</string>
     <string name="smartAnalysisHighLow">저고 %1$d:%2$d</string>
     <string name="smartAnalysisSum">합계 %1$d</string>
+    <string name="smartAnalysisConsecutiveNone">연속 없음</string>
+    <string name="smartAnalysisConsecutive">최대 %1$d연속</string>
+    <string name="smartAnalysisLastDigit">동일 끝수 %1$d개</string>
     <string name="smartApplyCurrentSlot">게임 %1$s에 적용</string>
     <string name="smartApplyAllEmptySlots">빈 게임 슬롯 전체 채우기</string>
     <string name="smartGenerateNew">🎲 다시 생성</string>

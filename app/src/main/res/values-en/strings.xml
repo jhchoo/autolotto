@@ -193,16 +193,23 @@
     <!-- Smart Generator -->
     <string name="buttonSmartGenerate">✨ Smart Number Generator</string>
     <string name="smartGeneratorTitle">Smart Number Generator</string>
-    <string name="smartGeneratorSubtitle">Recommends numbers using frequency &amp; statistical patterns.</string>
+    <string name="smartGeneratorSubtitle">Recommends numbers using recent 100 rounds &amp; 6 statistical filters.</string>
     <string name="smartStrategyBalanced">⚖️ Balanced Recommender</string>
-    <string name="smartStrategyBalancedDesc">Sum 130~180 · Odd/Even &amp; High/Low(1~22/23~45)</string>
+    <string name="smartStrategyBalancedDesc">Balanced mix of 2 Hot + 2 Cold + 2 Normal</string>
     <string name="smartStrategyHot">🔥 Hot Numbers Focus</string>
-    <string name="smartStrategyHotDesc">Focuses on frequent numbers from recent 50 rounds</string>
+    <string name="smartStrategyHotDesc">Recommends numbers centered on frequent ones from recent 100 rounds (4)</string>
     <string name="smartStrategyCold">❄️ Cold Numbers Focus</string>
-    <string name="smartStrategyColdDesc">Focuses on long-absent numbers (4)</string>
+    <string name="smartStrategyColdDesc">Recommends numbers centered on low-frequency ones from recent 100 rounds (4)</string>
+    <string name="smartGuideTitle">💡 Basis &amp; Statistical Filtering Criteria</string>
+    <string name="smartGuideBalancedCondition">· Mix: 2 Hot + 2 Cold + 2 Normal (recent 100 rounds)\n· Sum Range: 130 ~ 180 (most common winning sum)\n· Odd:Even: 3:3 · 4:2 · 2:4 (balanced distribution)\n· Low:High: 3:3 · 4:2 · 2:4 (1~22 Low / 23~45 High)\n· Consecutive: Max 2 consecutive numbers\n· Same Last Digit: Max 2 numbers with identical last digit</string>
+    <string name="smartGuideHotCondition">· Mix: 4 Hot + 1 Cold + 1 Normal (recent 100 rounds)\n· Sum Range: 130 ~ 180 (most common winning sum)\n· Odd:Even: 3:3 · 4:2 · 2:4 (balanced distribution)\n· Low:High: 3:3 · 4:2 · 2:4 (1~22 Low / 23~45 High)\n· Consecutive: Max 2 consecutive numbers\n· Same Last Digit: Max 2 numbers with identical last digit</string>
+    <string name="smartGuideColdCondition">· Mix: 4 Cold + 1 Hot + 1 Normal (recent 100 rounds)\n· Sum Range: 130 ~ 180 (most common winning sum)\n· Odd:Even: 3:3 · 4:2 · 2:4 (balanced distribution)\n· Low:High: 3:3 · 4:2 · 2:4 (1~22 Low / 23~45 High)\n· Consecutive: Max 2 consecutive numbers\n· Same Last Digit: Max 2 numbers with identical last digit</string>
     <string name="smartAnalysisOddEven">Odd:Even %1$d:%2$d</string>
     <string name="smartAnalysisHighLow">Low:High %1$d:%2$d</string>
     <string name="smartAnalysisSum">Sum %1$d</string>
+    <string name="smartAnalysisConsecutiveNone">No Consecutive</string>
+    <string name="smartAnalysisConsecutive">Max %1$d Consecutive</string>
+    <string name="smartAnalysisLastDigit">Max %1$d Same Last Digit</string>
     <string name="smartApplyCurrentSlot">Apply to Game %1$s</string>
     <string name="smartApplyAllEmptySlots">Fill All Empty Game Slots</string>
     <string name="smartGenerateNew">🎲 Regenerate</string>

@@ -67,29 +67,36 @@ object LottoFrequencyAnalyzer {
                 count = counts[num],
                 lastDrawnRound = lastRounds[num],
             )
-        }.sortedWith(
+        }
+
+        val hotSorted = freqList.sortedWith(
             compareByDescending<NumberFrequency> { it.count }
-                .thenBy { it.lastDrawnRound } // 같으면 오랫동안 나오지 않은 순
+                .thenByDescending { it.lastDrawnRound } // 출현 횟수 많은 순, 같으면 최근 출현 순
                 .thenBy { it.number },
         )
+        val hotNumbers = hotSorted.take(15).map { it.number }
 
-        val hotNumbers = freqList.take(15).map { it.number }
-        val coldNumbers = freqList.takeLast(15).map { it.number }
+        val coldSorted = freqList.sortedWith(
+            compareBy<NumberFrequency> { it.count }
+                .thenBy { it.lastDrawnRound } // 출현 횟수 적은 순, 같으면 오랫동안 나오지 않은 순
+                .thenBy { it.number },
+        )
+        val coldNumbers = coldSorted.take(15).map { it.number }
         val normalNumbers = (1..45).filter { it !in hotNumbers && it !in coldNumbers }
 
         return FrequencyAnalysis(
             minRound = minRound,
             maxRound = maxRound,
             totalRounds = totalRounds,
-            frequencies = freqList,
+            frequencies = hotSorted,
             hotNumbers = hotNumbers,
             coldNumbers = coldNumbers,
             normalNumbers = normalNumbers,
         )
     }
 
-    /** 최근 N회차(기본 50회) 기준 출현 빈도 분석 */
-    fun analyzeRecent(history: Map<Int, WinningResult>, recentCount: Int = 50): FrequencyAnalysis {
+    /** 최근 N회차(기본 100회) 기준 출현 빈도 분석 */
+    fun analyzeRecent(history: Map<Int, WinningResult>, recentCount: Int = 100): FrequencyAnalysis {
         if (history.isEmpty()) return analyze(history)
         val sortedKeys = history.keys.sortedDescending()
         val recentKeys = sortedKeys.take(recentCount).toSet()

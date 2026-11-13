@@ -193,16 +193,23 @@
     <!-- 스마트 번호 추천 -->
     <string name="buttonSmartGenerate">✨ スマート番号推薦</string>
     <string name="smartGeneratorTitle">スマート番号推薦</string>
-    <string name="smartGeneratorSubtitle">出現頻度と統計パターンに基づいて推薦します。</string>
+    <string name="smartGeneratorSubtitle">直近100回の出現頻度と6大統計パターンフィルタを適用します。</string>
     <string name="smartStrategyBalanced">⚖️ バランス推薦</string>
-    <string name="smartStrategyBalancedDesc">合計130~180 · 奇偶/高低(1~22/23~45)</string>
+    <string name="smartStrategyBalancedDesc">頻出2 + 未出現2 + 一般2のバランス組合せ</string>
     <string name="smartStrategyHot">🔥 頻出番号中心</string>
-    <string name="smartStrategyHotDesc">直近50回でよく出ている番号を中心に推薦</string>
+    <string name="smartStrategyHotDesc">直近100回を基準に頻出番号(4個)を中心に推薦</string>
     <string name="smartStrategyCold">❄️ 長期未出現中心</string>
-    <string name="smartStrategyColdDesc">長らく出ていない番号(4)を中心に推薦</string>
+    <string name="smartStrategyColdDesc">直近100回を基準に出現頻度が低い番号(4個)を中心に推薦</string>
+    <string name="smartGuideTitle">💡 推薦根拠および統計フィルタ条件</string>
+    <string name="smartGuideBalancedCondition">· 番号構成: 直近100回 頻出2個 + 未出現2個 + 一般2個\n· 合計範囲: 130 ~ 180 (最多当選区間)\n· 奇偶比率: 3:3 · 4:2 · 2:4 (バランス分布)\n· 低高比率: 3:3 · 4:2 · 2:4 (1~22低 / 23~45高)\n· 連続番号: 最大2連続以下 (3連続以上を除外)\n· 末尾同数: 最大2個以下 (同末尾3個以上を除外)</string>
+    <string name="smartGuideHotCondition">· 番号構成: 直近100回 頻出4個 + 未出現1個 + 一般1個\n· 合計範囲: 130 ~ 180 (最多当選区間)\n· 奇偶比率: 3:3 · 4:2 · 2:4 (バランス分布)\n· 低高比率: 3:3 · 4:2 · 2:4 (1~22低 / 23~45高)\n· 連続番号: 最大2連続以下 (3連続以上を除外)\n· 末尾同数: 最大2個以下 (同末尾3個以上を除外)</string>
+    <string name="smartGuideColdCondition">· 番号構成: 直近100回 未出現4個 + 頻出1個 + 一般1個\n· 合計範囲: 130 ~ 180 (最多当選区間)\n· 奇偶比率: 3:3 · 4:2 · 2:4 (バランス分布)\n· 低高比率: 3:3 · 4:2 · 2:4 (1~22低 / 23~45高)\n· 連続番号: 最大2連続以下 (3連続以上を除外)\n· 末尾同数: 最大2個以下 (同末尾3個以上を除外)</string>
     <string name="smartAnalysisOddEven">奇偶 %1$d:%2$d</string>
     <string name="smartAnalysisHighLow">低高 %1$d:%2$d</string>
     <string name="smartAnalysisSum">合計 %1$d</string>
+    <string name="smartAnalysisConsecutiveNone">連続なし</string>
+    <string name="smartAnalysisConsecutive">最大%1$d連続</string>
+    <string name="smartAnalysisLastDigit">同末尾 %1$d個</string>
     <string name="smartApplyCurrentSlot">ゲーム%1$sに適用</string>
     <string name="smartApplyAllEmptySlots">空きスロット全体を埋める</string>
     <string name="smartGenerateNew">🎲 再生成</string>

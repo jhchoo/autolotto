@@ -65,4 +65,28 @@ class SmartNumberGeneratorTest {
             assertTrue(numbers.all { it in 1..45 })
         }
     }
+
+    @Test
+    fun generateNumbers_hotAndColdStrategiesSatisfyConstraints() {
+        for (i in 1..30) {
+            val hotNumbers = SmartNumberGenerator.generateNumbers(LottoStrategy.HOT_FOCUS)
+            assertEquals(6, hotNumbers.size)
+            assertTrue(SmartNumberGenerator.validateAllConstraints(hotNumbers, LottoStrategy.HOT_FOCUS))
+
+            val coldNumbers = SmartNumberGenerator.generateNumbers(LottoStrategy.COLD_FOCUS)
+            assertEquals(6, coldNumbers.size)
+            assertTrue(SmartNumberGenerator.validateAllConstraints(coldNumbers, LottoStrategy.COLD_FOCUS))
+        }
+    }
+
+    @Test
+    fun helperMethods_calculateAccurately() {
+        assertEquals(1, SmartNumberGenerator.getMaxConsecutive(listOf(1, 3, 5, 7, 9, 11)))
+        assertEquals(2, SmartNumberGenerator.getMaxConsecutive(listOf(1, 2, 5, 7, 9, 11)))
+        assertEquals(3, SmartNumberGenerator.getMaxConsecutive(listOf(1, 2, 3, 7, 9, 11)))
+
+        assertEquals(1, SmartNumberGenerator.getMaxSameLastDigit(listOf(1, 2, 3, 4, 5, 6)))
+        assertEquals(2, SmartNumberGenerator.getMaxSameLastDigit(listOf(1, 11, 3, 4, 5, 6)))
+        assertEquals(3, SmartNumberGenerator.getMaxSameLastDigit(listOf(1, 11, 21, 4, 5, 6)))
+    }
 }

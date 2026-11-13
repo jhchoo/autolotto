@@ -164,28 +164,28 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
     /** 실시간 당첨 통계 분석 정보 조회 (recentCount 지정 시 최근 N회차 분석) */
     fun getFrequencyAnalysis(
         context: android.content.Context,
-        recentCount: Int = 200,
+        recentCount: Int = 100,
     ): com.umicorp.autolotto.generator.FrequencyAnalysis {
         val history = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(context)
         return com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, recentCount)
     }
 
-    /** 지정한 전략과 분석 데이터에 맞춰 6개 로또 번호 1세트 생성 (스마트 추천시 최근 200회 정보만을 사용) */
+    /** 지정한 전략과 분석 데이터에 맞춰 6개 로또 번호 1세트 생성 (스마트 추천시 최근 100회 정보만을 사용) */
     fun generateSmartNumbers(
         context: android.content.Context,
         strategy: com.umicorp.autolotto.generator.LottoStrategy = com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
     ): List<Int> {
-        val analysis = getFrequencyAnalysis(context, recentCount = 200)
+        val analysis = getFrequencyAnalysis(context, recentCount = 100)
         return com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(strategy, analysis)
     }
 
-    /** 지정한 전략과 분석 데이터에 맞춰 N개의 서로 다른 6개 로또 번호 세트 생성 (스마트 추천시 최근 200회 정보만을 사용) */
+    /** 지정한 전략과 분석 데이터에 맞춰 N개의 서로 다른 6개 로또 번호 세트 생성 (스마트 추천시 최근 100회 정보만을 사용) */
     fun generateMultipleSmartNumbers(
         context: android.content.Context,
         count: Int,
         strategy: com.umicorp.autolotto.generator.LottoStrategy = com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
     ): List<List<Int>> {
-        val analysis = getFrequencyAnalysis(context, recentCount = 200)
+        val analysis = getFrequencyAnalysis(context, recentCount = 100)
         val result = mutableListOf<List<Int>>()
         var attempts = 0
         while (result.size < count && attempts < 100) {
