@@ -153,6 +153,8 @@
     <string name="donationTitle">コーヒー1杯おごる</string>
 
     <string name="snackbarLoginFailed">ログインに失敗しました。もう一度お試しください。</string>
+    <string name="snackbarLoginTimeout">ネットワーク遅延のためログインがタイムアウトしました (%1$d秒)。もう一度お試しください。</string>
+    <string name="snackbarLoginMaintenance">同行福券システム点検中です: %1$s</string>
     <string name="permissionNotification">通知権限</string>
     <string name="permissionNotificationDesc">購入・当選通知の受信に必要</string>
     <string name="permissionExactAlarm">正確なアラーム</string>

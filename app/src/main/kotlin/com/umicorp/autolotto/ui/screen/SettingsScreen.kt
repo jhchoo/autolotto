@@ -176,10 +176,12 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
 
     // 로그인 결과 → 스낵바(원본 _login의 try/catch 스낵바). consume 후 Idle 복귀.
     LaunchedEffect(loginState) {
-        val msg = when (loginState) {
+        val msg = when (val state = loginState) {
             LoginState.Success -> context.resources.getString(R.string.snackbarLoginSuccess)
             LoginState.InvalidCredentials -> "❌ " + context.resources.getString(R.string.errorInvalidCredentials)
-            LoginState.Error -> "❌ " + context.resources.getString(R.string.snackbarLoginFailed)
+            is LoginState.Maintenance -> "🚧 " + (state.reason ?: context.resources.getString(R.string.maintenanceBannerNotice))
+            is LoginState.Timeout -> "⏱️ 네트워크 지연으로 로그인 시간이 초과되었습니다 (${state.seconds}초). 다시 시도해주세요."
+            is LoginState.Error -> "❌ " + (state.message ?: context.resources.getString(R.string.snackbarLoginFailed))
             else -> null
         }
         if (msg != null) {

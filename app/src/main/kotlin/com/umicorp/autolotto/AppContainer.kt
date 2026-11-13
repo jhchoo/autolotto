@@ -24,6 +24,7 @@ import com.umicorp.autolotto.util.OnceGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.ZoneId
@@ -200,6 +202,35 @@ class AppContainer(context: Context) {
         private set
 
     /**
+     * 네트워크 속도 체크에 따른 로그인 실행 (저속 30초, 중속 10초, 고속 5초).
+     * 타임아웃 발생 시 서버 점검 상태인지 확인하여 점검 여부 또는 타임아웃 예외를 결정한다.
+     */
+    private suspend fun executeLoginWithTimeout(id: String, pw: String) {
+        val speed = com.umicorp.autolotto.dhlottery.NetworkSpeedChecker.checkSpeed(appContext)
+        session.updateTimeout(speed.timeoutMillis)
+
+        try {
+            withTimeout(speed.timeoutMillis) {
+                auth.login(id, pw)
+            }
+        } catch (e: TimeoutCancellationException) {
+            // 속도에 따른 타임아웃 발생 -> 서버가 점검 중인지 확인
+            val health = com.umicorp.autolotto.dhlottery.ServerHealthChecker.checkHealth(appContext)
+            if (health is com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance) {
+                _serverHealth.value = health
+                throw DhlotteryException("MAINTENANCE:${health.reason ?: "동행복권 시스템 점검 중"}")
+            }
+            throw DhlotteryException("TIMEOUT:${speed.timeoutMillis / 1000}")
+        } catch (e: DhlotteryException) {
+            if (e.message?.startsWith("MAINTENANCE") == true) {
+                val reason = e.message?.removePrefix("MAINTENANCE:")?.takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
+                _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
+            }
+            throw e
+        }
+    }
+
+    /**
      * 저장된 자격증명으로 자동 로그인 + 잔액 + 잔액부족 체크. single-flight(tryLock) —
      * 진행 중이면 no-op. 실패는 [autoLoginFailed]로 노출(과거의 조용한 무시 대체). 던지지 않는다.
      * @return true = 이 호출이 실제 수행됨(락 획득). false = 다른 로그인이 진행 중이라 스킵 —
@@ -227,7 +258,7 @@ class AppContainer(context: Context) {
             val id = cred.userId ?: return@withContext true   // 자격증명 없음 — 실패 아님
             val pw = cred.password ?: return@withContext true
             try {
-                auth.login(id, pw)
+                executeLoginWithTimeout(id, pw)
                 _isLoggedIn.value = true
                 _loggedInUserId.value = id
                 _autoLoginFailed.value = false
@@ -238,7 +269,16 @@ class AppContainer(context: Context) {
                 throw e
             } catch (e: Exception) {
                 _autoLoginFailed.value = true
-                autoLoginRetryable = (e as? DhlotteryException)?.message != "INVALID_CREDENTIALS"
+                val msg = (e as? DhlotteryException)?.message.orEmpty()
+                if (msg.startsWith("MAINTENANCE")) {
+                    val reason = msg.removePrefix("MAINTENANCE:").takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
+                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
+                    autoLoginRetryable = true
+                } else if (msg == "INVALID_CREDENTIALS") {
+                    autoLoginRetryable = false
+                } else {
+                    autoLoginRetryable = true
+                }
             }
             true
         } finally {
@@ -250,7 +290,7 @@ class AppContainer(context: Context) {
 
     /** 수동 로그인(설정 화면). 실패 시 throw(INVALID_CREDENTIALS 등) — 호출자가 매핑. 잔액알림은 안 함(원본과 동일). */
     suspend fun login(id: String, pw: String, saveId: Boolean = true) {
-        loginMutex.withLock { auth.login(id, pw) }  // 락 해제 후 PurchaseLock — 중첩 금지(락 순서 규칙)
+        loginMutex.withLock { executeLoginWithTimeout(id, pw) }  // 락 해제 후 PurchaseLock — 중첩 금지(락 순서 규칙)
         // 로컬 계정 전환 커밋은 구매 임계구역과 직렬화(PurchaseLock) — 워커 구매와 경합 방지.
         // 회차 가드는 계정의 기록 — 다른 계정 로그인 시 무효화(같은 계정 재로그인은 보존).
         PurchaseLock.mutex.withLock {

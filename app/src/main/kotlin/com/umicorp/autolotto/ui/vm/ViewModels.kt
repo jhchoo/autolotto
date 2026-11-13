@@ -495,19 +495,38 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     /** 로그인 진행/결과 (스낵바·다이얼로그용). 원본 INVALID_CREDENTIALS 분기 유지. */
+    /** 로그인 진행/결과 (스낵바·다이얼로그용). 원본 INVALID_CREDENTIALS 분기 유지 + 점검/타임아웃 구분. */
     sealed interface LoginState {
         data object Idle : LoginState
         data object InProgress : LoginState
         data object Success : LoginState
         data object InvalidCredentials : LoginState
-        data object Error : LoginState
+        data class Maintenance(val reason: String? = null) : LoginState
+        data class Timeout(val seconds: Int) : LoginState
+        data class Error(val message: String? = null) : LoginState
     }
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState.asStateFlow()
 
     fun hasCredentials(): Boolean = container.store.hasCredentials()
-    
+
+    private fun mapLoginException(e: Exception): LoginState {
+        val msg = e.message.orEmpty()
+        return when {
+            msg.startsWith("MAINTENANCE") -> {
+                val reason = msg.removePrefix("MAINTENANCE:").takeIf { it.isNotBlank() }
+                LoginState.Maintenance(reason)
+            }
+            msg.startsWith("TIMEOUT") -> {
+                val sec = msg.removePrefix("TIMEOUT:").toIntOrNull() ?: 30
+                LoginState.Timeout(sec)
+            }
+            msg.contains("INVALID_CREDENTIALS") -> LoginState.InvalidCredentials
+            else -> LoginState.Error(msg.takeIf { it.isNotBlank() })
+        }
+    }
+
     fun loginWithSavedCredentials() {
         viewModelScope.launch {
             _loginState.value = LoginState.InProgress
@@ -518,8 +537,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 container.login(u, p)
                 LoginState.Success
             } catch (e: Exception) {
-                if ((e.message ?: "").contains("INVALID_CREDENTIALS")) LoginState.InvalidCredentials
-                else LoginState.Error
+                mapLoginException(e)
             }
         }
     }
@@ -534,8 +552,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 container.login(u, p, saveId)
                 LoginState.Success
             } catch (e: Exception) {
-                if ((e.message ?: "").contains("INVALID_CREDENTIALS")) LoginState.InvalidCredentials
-                else LoginState.Error
+                mapLoginException(e)
             }
         }
     }

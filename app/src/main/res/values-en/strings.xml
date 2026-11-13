@@ -153,6 +153,8 @@
     <string name="donationTitle">Buy Me a Coffee</string>
 
     <string name="snackbarLoginFailed">Login failed. Please try again.</string>
+    <string name="snackbarLoginTimeout">Login timed out due to network delay (%1$ds). Please try again.</string>
+    <string name="snackbarLoginMaintenance">DHLottery is currently undergoing maintenance: %1$s</string>
     <string name="permissionNotification">Notification Permission</string>
     <string name="permissionNotificationDesc">Required to receive purchase/result notifications</string>
     <string name="permissionExactAlarm">Exact Alarm</string>

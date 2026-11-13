@@ -29,27 +29,36 @@ class DhlotterySession(
     fun base(path: String): String = baseUrl + path
     fun ol(path: String): String = olottoUrl + path
 
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .followRedirects(false)
-        .followSslRedirects(false)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .addInterceptor { chain ->
-            val original = chain.request()
-            val host = original.url.host
-            val builder = original.newBuilder()
-            for ((k, v) in ApiConstants.DEFAULT_HEADERS) {
-                if (original.header(k) == null) builder.header(k, v)
-            }
-            val cookie = cookies.cookieHeader(host)
-            if (cookie.isNotEmpty()) builder.header("Cookie", cookie)
+    @Volatile
+    private var client: OkHttpClient = buildClient(30, 30)
 
-            val response = chain.proceed(builder.build())
-            val setCookies = response.headers("Set-Cookie")
-            if (setCookies.isNotEmpty()) cookies.store(setCookies, host)
-            response
-        }
-        .build()
+    private fun buildClient(connectSec: Long, readSec: Long): OkHttpClient =
+        OkHttpClient.Builder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .connectTimeout(connectSec, TimeUnit.SECONDS)
+            .readTimeout(readSec, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val host = original.url.host
+                val builder = original.newBuilder()
+                for ((k, v) in ApiConstants.DEFAULT_HEADERS) {
+                    if (original.header(k) == null) builder.header(k, v)
+                }
+                val cookie = cookies.cookieHeader(host)
+                if (cookie.isNotEmpty()) builder.header("Cookie", cookie)
+
+                val response = chain.proceed(builder.build())
+                val setCookies = response.headers("Set-Cookie")
+                if (setCookies.isNotEmpty()) cookies.store(setCookies, host)
+                response
+            }
+            .build()
+
+    fun updateTimeout(timeoutMillis: Long) {
+        val sec = (timeoutMillis / 1000).coerceIn(5, 30)
+        client = buildClient(sec, sec)
+    }
 
     fun get(url: String, headers: Map<String, String> = emptyMap(), follow: Boolean = false): Response {
         val builder = Request.Builder().url(url).get()

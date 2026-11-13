@@ -159,6 +159,8 @@
 
     <!-- 설정: 로그인 실패 + 권한 상태(원본 외 추가 — 네이티브 백그라운드 신뢰성) -->
     <string name="snackbarLoginFailed">로그인에 실패했습니다. 다시 시도해주세요.</string>
+    <string name="snackbarLoginTimeout">네트워크 지연으로 로그인 시간이 초과되었습니다 (%1$d초). 다시 시도해주세요.</string>
+    <string name="snackbarLoginMaintenance">동행복권 시스템 점검 중입니다: %1$s</string>
     <string name="permissionNotification">알림 권한</string>
     <string name="permissionNotificationDesc">구매·당첨 알림 수신에 필요</string>
     <string name="permissionExactAlarm">정확한 알람</string>

@@ -31,21 +31,38 @@ class AuthService(private val session: DhlotterySession) {
             isLoggedIn = false
 
             // 1. 메인 / 2. 로그인 페이지 (Dart: 리다이렉트 추적)
-            session.get(session.baseUrl, follow = true).close()
-            session.get(session.base(ApiConstants.LOGIN_PAGE), follow = true).close()
+            val mainBody = session.get(session.baseUrl, follow = true).use { resp ->
+                checkMaintenance(resp.code, null)
+                resp.body?.string().orEmpty()
+            }
+            checkMaintenance(200, mainBody)
+
+            val loginPageBody = session.get(session.base(ApiConstants.LOGIN_PAGE), follow = true).use { resp ->
+                checkMaintenance(resp.code, null)
+                resp.body?.string().orEmpty()
+            }
+            checkMaintenance(200, loginPageBody)
 
             // 3. RSA 공개키 (Dart: 추적 안 함)
-            val rsaBody = session.get(
+            val rsaResp = session.get(
                 session.base(ApiConstants.RSA_MODULUS),
                 mapOf(
                     "Accept" to "application/json",
                     "X-Requested-With" to "XMLHttpRequest",
                     "Referer" to session.base(ApiConstants.LOGIN_PAGE),
                 ),
-            ).use { it.body?.string().orEmpty() }
+            )
+            val rsaCode = rsaResp.code
+            val rsaBody = rsaResp.use { it.body?.string().orEmpty() }
+            checkMaintenance(rsaCode, rsaBody)
 
             val data = runCatching { JSONObject(rsaBody).getJSONObject("data") }.getOrNull()
-                ?: throw DhlotteryException("RSA 키를 가져올 수 없습니다.")
+                ?: run {
+                    if (ServerHealthChecker.isMaintenanceText(rsaBody)) {
+                        throw DhlotteryException("MAINTENANCE:동행복권 시스템 점검 중")
+                    }
+                    throw DhlotteryException("RSA 키를 가져올 수 없습니다.")
+                }
             val modulus = data.getString("rsaModulus")
             val exponent = data.getString("publicExponent")
             val encId = RsaCrypto.encrypt(userId, modulus, exponent)
@@ -53,7 +70,7 @@ class AuthService(private val session: DhlotterySession) {
 
             // 4. 로그인 POST (Dart: 추적). 본문은 Dart처럼 미리 만든 문자열.
             val form = "userId=$encId&userPswdEncn=$encPw&inpUserId=${URLEncoder.encode(userId, "UTF-8")}"
-            session.post(
+            val postBody = session.post(
                 session.base(ApiConstants.LOGIN),
                 form,
                 mapOf(
@@ -61,7 +78,11 @@ class AuthService(private val session: DhlotterySession) {
                     "Referer" to session.base(ApiConstants.LOGIN_PAGE),
                 ),
                 follow = true,
-            ).close()
+            ).use { resp ->
+                checkMaintenance(resp.code, null)
+                resp.body?.string().orEmpty()
+            }
+            checkMaintenance(200, postBody)
 
             // JSESSIONID 없으면 메인 재방문으로 유도 (Dart: 추적)
             if (!session.cookies.hasCookie("JSESSIONID")) {
@@ -76,13 +97,37 @@ class AuthService(private val session: DhlotterySession) {
             // 자격증명 거절(INVALID_CREDENTIALS)과 구분해야 재시도 정책이 역전되지 않는다(crosscheck R2).
             val verified = verifyLogin()
             isLoggedIn = verified
-            if (!verified) throw DhlotteryException("INVALID_CREDENTIALS")
+            if (!verified) {
+                if (checkIfUnderMaintenance()) {
+                    throw DhlotteryException("MAINTENANCE:동행복권 시스템 점검 중")
+                }
+                throw DhlotteryException("INVALID_CREDENTIALS")
+            }
             true
         } catch (e: Exception) {
             session.cookies.restore(prevCookies)
             isLoggedIn = prevLoggedIn
             throw e
         }
+    }
+
+    private fun checkMaintenance(code: Int, body: String?) {
+        if (code == 503 || code == 502) {
+            throw DhlotteryException("MAINTENANCE:서버 응답 코드: $code")
+        }
+        if (ServerHealthChecker.isMaintenanceText(body)) {
+            throw DhlotteryException("MAINTENANCE:동행복권 시스템 점검 중")
+        }
+    }
+
+    private fun checkIfUnderMaintenance(): Boolean {
+        return runCatching {
+            session.get(session.baseUrl, follow = true).use { resp ->
+                if (resp.code == 503 || resp.code == 502) return@runCatching true
+                val body = resp.body?.string().orEmpty()
+                ServerHealthChecker.isMaintenanceText(body)
+            }
+        }.getOrDefault(false)
     }
 
     /** mypage 200 여부로 검증. 리다이렉트 추적 안 함(302 ≠ 성공). IO 예외·5xx는 전파(일시 장애). */
