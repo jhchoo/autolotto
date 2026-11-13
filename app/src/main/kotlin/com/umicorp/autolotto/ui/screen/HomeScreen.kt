@@ -195,7 +195,9 @@ fun HomeScreen(
                     .padding(20.dp),
             ) {
                 val serverHealth by vm.serverHealth.collectAsState()
-                if (serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
+                // 로그인 진행 중(isLoggingIn)이거나 이미 로그인 성공(isLoggedIn)한 상태에서는 점검 배너를 띄우지 않는다.
+                // 로그인 실패/미로그인 상태이고 서버가 점검/오프라인일 때만 배너 표시.
+                if (!isLoggingIn && !isLoggedIn && serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
                     TonalCard(accent = LgAmber, contentPadding = PaddingValues(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -226,7 +228,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
                 InstantPurchaseCta(
                     isLoggedIn = isLoggedIn,
-                    serverHealth = serverHealth,
+                    serverHealth = if (isLoggingIn) com.umicorp.autolotto.dhlottery.ServerHealth.Online else serverHealth,
                     purchasedThisRound = lastRound >= vm.currentRound,
                     saleOpen = numVm.isSaleOpenNow(),
                     autoGames = autoGames,

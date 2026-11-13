@@ -152,10 +152,14 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
 
     val container = LocalContext.current.appContainer
     val serverHealth by container.serverHealth.collectAsState()
+    val isLoggingIn by container.isLoggingIn.collectAsState()
+    val isLoggedIn by container.isLoggedIn.collectAsState()
     var showMaintenanceDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(serverHealth) {
-        if (serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
+    LaunchedEffect(serverHealth, isLoggingIn, isLoggedIn) {
+        if (isLoggingIn || isLoggedIn || serverHealth is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
+            showMaintenanceDialog = false
+        } else {
             showMaintenanceDialog = true
         }
     }

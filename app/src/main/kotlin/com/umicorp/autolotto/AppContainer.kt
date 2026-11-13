@@ -158,9 +158,8 @@ class AppContainer(context: Context) {
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
         runCatching { scheduler.rescheduleAll() }
 
-        // 네트워크 체크 및 당첨번호 수집은 스플래시 화면을 지연시키지 않도록 백그라운드 비동기 수행
+        // 당첨번호 수집은 스플래시 화면을 지연시키지 않도록 백그라운드 비동기 수행
         CoroutineScope(Dispatchers.IO).launch {
-            runCatching { checkServerHealth(appContext) }
             runCatching { syncLatestWinningResults(appContext) }
         }
     }
@@ -215,6 +214,7 @@ class AppContainer(context: Context) {
             withTimeout(timeoutMillis) {
                 auth.login(id, pw)
             }
+            _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
         } catch (e: TimeoutCancellationException) {
             // 30초 타임아웃 발생 -> 서버가 점검 중인지 확인
             val health = com.umicorp.autolotto.dhlottery.ServerHealthChecker.checkHealth(appContext)
@@ -248,6 +248,7 @@ class AppContainer(context: Context) {
                     runCatching { _loggedInUserId.value = store.getCredentials().userId }
                 }
                 _autoLoginFailed.value = false
+                _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
                 return@withContext true
             }
             val cred = try {
@@ -266,6 +267,7 @@ class AppContainer(context: Context) {
                 _isLoggedIn.value = true
                 _loggedInUserId.value = id
                 _autoLoginFailed.value = false
+                _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
                 val b = auth.getBalance()
                 _balance.value = b
                 BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
@@ -279,6 +281,7 @@ class AppContainer(context: Context) {
                     _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
                     autoLoginRetryable = true
                 } else if (msg == "INVALID_CREDENTIALS") {
+                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
                     autoLoginRetryable = false
                 } else {
                     autoLoginRetryable = true
@@ -318,6 +321,7 @@ class AppContainer(context: Context) {
             _isLoggedIn.value = true
             _loggedInUserId.value = id
             _autoLoginFailed.value = false
+            _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
             _balance.value = auth.getBalance()
         } finally {
             _isLoggingIn.value = false

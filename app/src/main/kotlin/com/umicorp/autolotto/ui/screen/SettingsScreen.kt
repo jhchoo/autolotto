@@ -58,7 +58,6 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -245,28 +244,32 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                         )
                     },
                     trailingContent = {
-                        TextButton(
-                            onClick = {
-                                if (isLoggedIn) {
-                                    vm.logout()
-                                    toast(R.string.snackbarLogoutSuccess)
-                                } else {
-                                    showLogin = true
-                                }
-                            },
-                            enabled = !isLoggingIn,
-                            colors = ButtonDefaults.textButtonColors(
-                                disabledContentColor = Color.Gray,
-                            ),
-                        ) {
-                            Text(
-                                text = when {
-                                    isLoggingIn -> stringResource(R.string.buttonLoggingInState)
-                                    isLoggedIn -> stringResource(R.string.buttonLogout)
-                                    else -> stringResource(R.string.buttonLogin)
+                        if (isLoggingIn) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.5.dp,
+                                )
+                            }
+                        } else {
+                            TextButton(
+                                onClick = {
+                                    if (isLoggedIn) {
+                                        vm.logout()
+                                        toast(R.string.snackbarLogoutSuccess)
+                                    } else {
+                                        showLogin = true
+                                    }
                                 },
-                                color = if (isLoggingIn) Color.Gray else Color.Unspecified,
-                            )
+                            ) {
+                                Text(
+                                    if (isLoggedIn) stringResource(R.string.buttonLogout)
+                                    else stringResource(R.string.buttonLogin),
+                                )
+                            }
                         }
                     },
                 )
