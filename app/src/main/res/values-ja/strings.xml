@@ -32,7 +32,6 @@
 
     <string name="numberSetupTitle">番号設定</string>
     <string name="bannerEnableAutoPurchase">設定で自動購入を有効にしてください</string>
-    <string name="numberSetupInstruction">毎週自動購入する番号を設定してください。\n手動番号は毎週固定、自動は毎週ランダム生成されます。</string>
     <string name="modeManual">✏️ 手動</string>
     <string name="modeAuto">🎲 自動</string>
     <string name="modeSmart">✨ 스마트</string>
@@ -193,7 +192,7 @@
     <!-- 스마트 번호 추천 -->
     <string name="buttonSmartGenerate">✨ スマート番号推薦</string>
     <string name="smartGeneratorTitle">スマート番号推薦</string>
-    <string name="smartGeneratorSubtitle">出現頻度と統計パターン(奇数/偶数、高低、末尾、連続番号)を反映して番号を生成します。</string>
+    <string name="smartGeneratorSubtitle">出現頻度と統計パターンに基づいて推薦します。</string>
     <string name="smartStrategyBalanced">⚖️ バランス推薦</string>
     <string name="smartStrategyBalancedDesc">合計130~180 · 奇偶/高低(1~22/23~45)</string>
     <string name="smartStrategyHot">🔥 頻出番号中心</string>

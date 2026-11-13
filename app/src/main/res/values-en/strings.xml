@@ -32,7 +32,6 @@
 
     <string name="numberSetupTitle">Number Setup</string>
     <string name="bannerEnableAutoPurchase">Please enable auto purchase in Settings</string>
-    <string name="numberSetupInstruction">Set numbers for weekly auto purchase.\nManual numbers are fixed weekly, auto numbers are randomly generated.</string>
     <string name="modeManual">✏️ Manual</string>
     <string name="modeAuto">🎲 Auto</string>
     <string name="modeSmart">✨ Smart</string>
@@ -193,7 +192,7 @@
     <!-- Smart Generator -->
     <string name="buttonSmartGenerate">✨ Smart Number Generator</string>
     <string name="smartGeneratorTitle">Smart Number Generator</string>
-    <string name="smartGeneratorSubtitle">Recommends numbers using frequency &amp; statistical patterns (Odd/Even, High/Low, Last Digits, Consecutive).</string>
+    <string name="smartGeneratorSubtitle">Recommends numbers using frequency &amp; statistical patterns.</string>
     <string name="smartStrategyBalanced">⚖️ Balanced Recommender</string>
     <string name="smartStrategyBalancedDesc">Sum 130~180 · Odd/Even &amp; High/Low(1~22/23~45)</string>
     <string name="smartStrategyHot">🔥 Hot Numbers Focus</string>

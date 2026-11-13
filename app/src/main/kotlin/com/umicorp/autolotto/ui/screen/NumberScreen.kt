@@ -112,7 +112,7 @@ import com.umicorp.autolotto.ui.vm.NumberViewModel.InstantState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class SlotMode { MANUAL, AUTO, SMART }
+enum class SlotMode { MANUAL, SMART, AUTO }
 
 /**
  * 자동 구매 번호 설정 (원본 number_screen.dart 1:1) — Lucky Gloss 리디자인.
@@ -325,15 +325,6 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                 }
                 Spacer(Modifier.height(16.dp))
             }
-            TonalCard(accent = LgTeal, contentPadding = PaddingValues(16.dp)) {
-                Text(
-                    stringResource(R.string.numberSetupInstruction),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Spacer(Modifier.height(16.dp))
-
             // 스마트 번호 추천
             Card(
                 onClick = { showSmartDialog = true },
@@ -424,7 +415,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(4.dp))
 
-            // 수동/자동/스마트 토글 — bouncy 스프링 슬라이드 인디케이터.
+            // 수동/스마트/자동 토글 — bouncy 스프링 슬라이드 인디케이터.
             ModeToggle(
                 mode = slotMode,
                 onChange = { mode -> slotMode = mode },
@@ -443,11 +434,11 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     Spacer(Modifier.height(12.dp))
                     SelectedNumbers(selected)
                 }
-                SlotMode.AUTO -> {
-                    AutoSlotCard()
-                }
                 SlotMode.SMART -> {
                     SmartSlotCard()
+                }
+                SlotMode.AUTO -> {
+                    AutoSlotCard()
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -636,7 +627,7 @@ private fun SlotTabs(
     }
 }
 
-/** 수동/자동/스마트 세그먼트 토글 — 민트 인디케이터가 bouncy 스프링으로 슬라이드. */
+/** 수동/스마트/자동 세그먼트 토글 — 민트 인디케이터가 bouncy 스프링으로 슬라이드. */
 @Composable
 private fun ModeToggle(mode: SlotMode, onChange: (SlotMode) -> Unit) {
     val scheme = MaterialTheme.colorScheme
@@ -652,8 +643,8 @@ private fun ModeToggle(mode: SlotMode, onChange: (SlotMode) -> Unit) {
         val indicatorX by animateDpAsState(
             targetValue = when (mode) {
                 SlotMode.MANUAL -> 0.dp
-                SlotMode.AUTO -> third
-                SlotMode.SMART -> third * 2
+                SlotMode.SMART -> third
+                SlotMode.AUTO -> third * 2
             },
             animationSpec = MotionSpecs.bouncy(),
             label = "modeIndicator",
@@ -680,15 +671,15 @@ private fun ModeToggle(mode: SlotMode, onChange: (SlotMode) -> Unit) {
                 modifier = Modifier.weight(1f),
             )
             ModeLabel(
-                text = stringResource(R.string.modeAuto),
-                active = mode == SlotMode.AUTO,
-                onClick = { onChange(SlotMode.AUTO) },
-                modifier = Modifier.weight(1f),
-            )
-            ModeLabel(
                 text = stringResource(R.string.modeSmart),
                 active = mode == SlotMode.SMART,
                 onClick = { onChange(SlotMode.SMART) },
+                modifier = Modifier.weight(1f),
+            )
+            ModeLabel(
+                text = stringResource(R.string.modeAuto),
+                active = mode == SlotMode.AUTO,
+                onClick = { onChange(SlotMode.AUTO) },
                 modifier = Modifier.weight(1f),
             )
         }

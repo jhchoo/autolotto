@@ -37,7 +37,6 @@
     <!-- 번호 설정 -->
     <string name="numberSetupTitle">번호 설정</string>
     <string name="bannerEnableAutoPurchase">설정에서 자동 구매를 활성화해주세요</string>
-    <string name="numberSetupInstruction">매주 자동 구매할 번호를 설정하세요.\n수동 번호는 매주 고정, 자동은 매주 랜덤 생성됩니다.</string>
     <string name="modeManual">✏️ 수동</string>
     <string name="modeAuto">🎲 자동</string>
     <string name="modeSmart">✨ 스마트</string>
@@ -199,7 +198,7 @@
     <!-- 스마트 번호 추천 -->
     <string name="buttonSmartGenerate">✨ 스마트 번호 추천</string>
     <string name="smartGeneratorTitle">스마트 번호 추천</string>
-    <string name="smartGeneratorSubtitle">출현 빈도 및 통계 패턴(홀짝, 고저, 끝자리, 연속번호)을 반영해 번호를 추천합니다.</string>
+    <string name="smartGeneratorSubtitle">출현 빈도 및 통계 패턴 추천합니다.</string>
     <string name="smartStrategyBalanced">⚖️ 균형 추천</string>
     <string name="smartStrategyBalancedDesc">합계 130~180 · 홀짝/고저(1~22/23~45) 3:3·4:2·2:4</string>
     <string name="smartStrategyHot">🔥 자주 나온 번호 위주</string>
