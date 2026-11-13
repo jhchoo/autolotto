@@ -400,6 +400,18 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
             }
             Spacer(Modifier.height(24.dp))
 
+            // ===== 당첨 번호 조회 =====
+            SettingsSection(stringResource(R.string.sectionWinningHistory)) {
+                ListItem(
+                    modifier = Modifier.clickable { showWinningHistoryScreen = true },
+                    colors = transparentListColors(),
+                    leadingContent = { SettingIcon(Icons.Rounded.ConfirmationNumber, LgAmber) },
+                    headlineContent = { Text(stringResource(R.string.winningHistoryTitle), fontWeight = FontWeight.Bold) },
+                    trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+
             // ===== 알림 =====
             SettingsSection(stringResource(R.string.sectionNotifications)) {
                 SwitchRow(
@@ -492,18 +504,6 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                     headlineContent = {
                         Text(stringResource(R.string.settingResetData), color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                     },
-                )
-            }
-            Spacer(Modifier.height(24.dp))
-
-            // ===== 당첨 번호 조회 =====
-            SettingsSection(stringResource(R.string.sectionWinningHistory)) {
-                ListItem(
-                    modifier = Modifier.clickable { showWinningHistoryScreen = true },
-                    colors = transparentListColors(),
-                    leadingContent = { SettingIcon(Icons.Rounded.ConfirmationNumber, LgAmber) },
-                    headlineContent = { Text(stringResource(R.string.winningHistoryTitle), fontWeight = FontWeight.Bold) },
-                    trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                 )
             }
             Spacer(Modifier.height(40.dp))
