@@ -67,12 +67,21 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     init { fetchWinningNumbers() }
 
-    /** 지난 회차(현재-1) 당첨번호 조회. 실패는 무시(원본 debugPrint 후 무시). */
+    /** 지난/최신 회차 당첨번호 조회 및 획득 후 스크래핑 시작. 실패는 무시(원본 debugPrint 후 무시). */
     fun fetchWinningNumbers() {
         viewModelScope.launch {
             _loadingNumbers.value = true
-            runCatching { container.resultService.getWinningNumbers(currentRound - 1) }
-                .getOrNull()?.let { _winning.value = it }
+            // 1. 최신 당첨결과 조회 (roundNo = null 이면 최신 회차)
+            var res = runCatching { container.resultService.getWinningNumbers() }.getOrNull()
+            if (res == null) {
+                // 폴백: currentRound - 1 시도
+                res = runCatching { container.resultService.getWinningNumbers(currentRound - 1) }.getOrNull()
+            }
+            if (res != null) {
+                _winning.value = res
+                // 스크래핑은 홈화면의 최신회차 정보를 획득 한 뒤에 시작
+                container.startWinningHistorySync(res.round)
+            }
             _loadingNumbers.value = false
         }
     }
@@ -143,15 +152,12 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
 
     // === 스마트 번호 추천 ===
 
-    private val _isHistoryLoading = MutableStateFlow(false)
-    val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
+    val isHistoryLoading: StateFlow<Boolean> = container.isHistoryLoading
 
     /** 당첨 데이터가 없으면 최초 자동 수집 수행 */
     suspend fun ensureWinningHistoryLoaded(context: android.content.Context) {
         if (!com.umicorp.autolotto.data.LottoHistoryStore.hasData(context)) {
-            _isHistoryLoading.value = true
-            container.syncLatestWinningResults(context)
-            _isHistoryLoading.value = false
+            container.initWinningHistory(context)
         }
     }
 
@@ -463,15 +469,12 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val balanceAlertThreshold = container.balanceAlertThreshold
     val language = container.language
     
-    private val _isHistoryLoading = MutableStateFlow(false)
-    val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
+    val isHistoryLoading: StateFlow<Boolean> = container.isHistoryLoading
 
     /** 당첨 데이터가 없으면 최초 자동 수집 수행 */
     suspend fun ensureWinningHistoryLoaded(context: android.content.Context) {
         if (!com.umicorp.autolotto.data.LottoHistoryStore.hasData(context)) {
-            _isHistoryLoading.value = true
-            container.syncLatestWinningResults(context)
-            _isHistoryLoading.value = false
+            container.initWinningHistory(context)
         }
     }
 

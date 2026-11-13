@@ -158,11 +158,24 @@ class AppContainer(context: Context) {
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
         runCatching { scheduler.rescheduleAll() }
 
-        // 당첨번호 수집은 스플래시 화면을 지연시키지 않도록 백그라운드 비동기 수행
+        // 외부 저장소 파일이 이미 존재하면 파일에서 글로벌 변수로 즉시 로드 (스크래핑은 홈화면의 최신회차 획득 후 시작)
         CoroutineScope(Dispatchers.IO).launch {
-            runCatching { syncLatestWinningResults(appContext) }
+            runCatching {
+                if (com.umicorp.autolotto.data.LottoHistoryStore.hasExternalStorageFile(appContext)) {
+                    val loaded = com.umicorp.autolotto.data.LottoHistoryStore.loadFromExternalStorage(appContext)
+                    if (!loaded.isNullOrEmpty()) {
+                        com.umicorp.autolotto.data.LottoHistoryStore.saveWinningResults(appContext, loaded)
+                    }
+                }
+            }
         }
     }
+
+    private val _isHistoryLoading = MutableStateFlow(false)
+    val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
+
+    private val scrapingMutex = Mutex()
+    private var lastScrapedLatestRound: Int = 0
 
     private val _serverHealth = MutableStateFlow<com.umicorp.autolotto.dhlottery.ServerHealth>(com.umicorp.autolotto.dhlottery.ServerHealth.Online)
     val serverHealth: StateFlow<com.umicorp.autolotto.dhlottery.ServerHealth> = _serverHealth.asStateFlow()
@@ -173,19 +186,88 @@ class AppContainer(context: Context) {
         _serverHealth.value = health
     }
 
-    /** 최신 당첨번호 동기화. DB가 비어 있으면 Lottotapa(1회~현재)/동행복권 수집, DB가 있으면 최신+1회차부터 수집. */
-    suspend fun syncLatestWinningResults(context: Context) = withContext(Dispatchers.IO) {
-        runCatching {
-            val currentRound = PurchaseService.getCurrentRound()
-            val latestStored = com.umicorp.autolotto.data.LottoHistoryStore.getLatestStoredRound(context)
-            if (latestStored == null) {
-                // 최초 수집: Lottotapa 수집 -> 동행복권 폴백
-                com.umicorp.autolotto.data.LottoHistoryStore.ensureInitialHistoryLoaded(context, resultService)
-            } else if (currentRound > latestStored) {
-                // 신규 회차 수집
-                com.umicorp.autolotto.data.LottoHistoryStore.fetchAndSaveRange(context, resultService, latestStored + 1, currentRound)
+    /**
+     * 홈화면에서 최신회차 정보를 획득한 뒤 호출되는 스크래핑 시작 트리거.
+     * 1. 파일이 없으면 sel_start(1) 부터 최신회차까지 스크래핑
+     * 2. 파일이 있으면 마지막 회차와 최신회차가 다를 때 sel_start 에 마지막 회차를 넣고 조회해서 파일에 추가
+     */
+    fun startWinningHistorySync(latestRound: Int) {
+        if (latestRound <= 0) return
+        CoroutineScope(Dispatchers.IO).launch {
+            syncWinningHistoryWithLatestRound(latestRound)
+        }
+    }
+
+    /**
+     * 최신회차 기준 당첨번호 스크래핑 및 외부저장소 동기화
+     */
+    suspend fun syncWinningHistoryWithLatestRound(latestRound: Int) = withContext(Dispatchers.IO) {
+        if (latestRound <= 0) return@withContext
+        scrapingMutex.withLock {
+            if (lastScrapedLatestRound == latestRound) return@withContext
+            _isHistoryLoading.value = true
+            try {
+                val hasFile = com.umicorp.autolotto.data.LottoHistoryStore.hasExternalStorageFile(appContext)
+
+                if (!hasFile) {
+                    // 3. 파일이 없으면 sel_start(1) 부터 최신회차까지 스크래핑
+                    val lottotapaResults = com.umicorp.autolotto.dhlottery.LottotapaParser.fetchAndParse(
+                        startRound = 1,
+                        endRound = latestRound,
+                    )
+                    if (lottotapaResults.isNotEmpty()) {
+                        com.umicorp.autolotto.data.LottoHistoryStore.saveWinningResults(appContext, lottotapaResults)
+                        lastScrapedLatestRound = latestRound
+                    } else {
+                        // Lottotapa 실패 시 동행복권 폴백 (1000..latestRound)
+                        com.umicorp.autolotto.data.LottoHistoryStore.fetchAndSaveRange(appContext, resultService, 1000, latestRound)
+                        lastScrapedLatestRound = latestRound
+                    }
+                } else {
+                    // 파일이 있으면: 이미 메모리에 없으면 로드
+                    if (com.umicorp.autolotto.data.LottoHistoryStore.globalWinningResults.isEmpty()) {
+                        val loaded = com.umicorp.autolotto.data.LottoHistoryStore.loadFromExternalStorage(appContext)
+                        if (!loaded.isNullOrEmpty()) {
+                            com.umicorp.autolotto.data.LottoHistoryStore.saveWinningResults(appContext, loaded)
+                        }
+                    }
+
+                    // 4. 파일이 있으면 마지막 회차와 최신회차가 다르면 sel_start 에 마지막 회차를 넣고 조회해서 파일에 추가.
+                    val lastStoredRound = com.umicorp.autolotto.data.LottoHistoryStore.getLatestStoredRound(appContext)
+                    if (lastStoredRound == null || lastStoredRound != latestRound) {
+                        val selStart = lastStoredRound ?: 1
+                        val newResults = com.umicorp.autolotto.dhlottery.LottotapaParser.fetchAndParse(
+                            startRound = selStart,
+                            endRound = latestRound,
+                        )
+                        if (newResults.isNotEmpty()) {
+                            com.umicorp.autolotto.data.LottoHistoryStore.saveWinningResults(appContext, newResults)
+                            lastScrapedLatestRound = latestRound
+                        } else if (selStart < latestRound) {
+                            // Lottotapa 실패 시 동행복권 폴백
+                            com.umicorp.autolotto.data.LottoHistoryStore.fetchAndSaveRange(appContext, resultService, selStart, latestRound)
+                            lastScrapedLatestRound = latestRound
+                        }
+                    } else {
+                        lastScrapedLatestRound = latestRound
+                    }
+                }
+            } catch (_: Exception) {
+            } finally {
+                _isHistoryLoading.value = false
             }
         }
+    }
+
+    /** 최신 당첨번호 동기화 위임 */
+    suspend fun syncLatestWinningResults(context: Context) = withContext(Dispatchers.IO) {
+        val currentRound = PurchaseService.getCurrentRound()
+        syncWinningHistoryWithLatestRound(currentRound - 1)
+    }
+
+    /** 초기 당첨번호 동기화 위임 */
+    suspend fun initWinningHistory(context: Context) = withContext(Dispatchers.IO) {
+        syncLatestWinningResults(context)
     }
 
 

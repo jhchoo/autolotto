@@ -1054,10 +1054,6 @@ private fun SmartGeneratorDialog(
     val context = LocalContext.current
     val isHistoryLoading by vm.isHistoryLoading.collectAsState()
 
-    LaunchedEffect(Unit) {
-        vm.ensureWinningHistoryLoaded(context)
-    }
-
     var selectedStrategy by remember { mutableStateOf(LottoStrategy.BALANCED) }
     var generatedNumbers by remember { mutableStateOf(vm.generateSmartNumbers(context, selectedStrategy)) }
 

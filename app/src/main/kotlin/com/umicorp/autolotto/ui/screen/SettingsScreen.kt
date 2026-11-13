@@ -907,10 +907,6 @@ fun WinningHistoryScreen(
     val imm = remember(context) { context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager }
     val isHistoryLoading by vm.isHistoryLoading.collectAsState()
 
-    LaunchedEffect(Unit) {
-        vm.ensureWinningHistoryLoaded(context)
-    }
-
     val latestStored = remember(isHistoryLoading, context) { vm.getLatestStoredRound(context) }
 
     var startRoundText by remember(latestStored) { mutableStateOf((maxOf(1, latestStored - 19)).toString()) }
