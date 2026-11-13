@@ -24,7 +24,6 @@
 - **보안 저장** — 계정 정보는 Android Keystore(EncryptedSharedPreferences) 암호화 저장
 - **다국어** — 한국어·영어·일본어, 설정에서 언어 선택 (기본: 시스템 언어)
 - **모던 디자인** — Material 3 Expressive 'Lucky Gloss', 네이티브 Jetpack Compose · 스프링 인터랙션
-- **자동 업데이트** — 앱 내에서 새 버전 원탭 설치, 설치 전 패키지명·서명 검증 (사이드로드 배포)
 
 ## 📱 스크린샷
 
@@ -61,7 +60,7 @@
 ```
 app/src/main/kotlin/com/umicorp/autolotto/
 ├── MainActivity.kt              # 진입점 (Compose setContent)
-├── AppContainer.kt              # 앱 스코프 컴포지션 루트 (상태·서비스·업데이트)
+├── AppContainer.kt              # 앱 스코프 컴포지션 루트 (상태·서비스)
 ├── dhlottery/                   # 동행복권 역공학 세션
 │   ├── AuthService.kt           # RSA 로그인 (도메인별 쿠키)
 │   ├── PurchaseService.kt       # 로또 구매 (execBuy.do)
@@ -83,8 +82,6 @@ app/src/main/kotlin/com/umicorp/autolotto/
 │   ├── SchedulerReceivers.kt    # 부팅·앱 업데이트 시 알람 복원
 │   ├── ExactAlarmPermission.kt  # 정확 알람 권한 확인·설정 이동
 │   └── Notifications.kt         # 알림 (구매/당첨/잔액)
-├── update/
-│   └── AppUpdater.kt            # 인앱 업데이트 (GitHub 릴리스 확인·설치)
 └── ui/                          # Jetpack Compose · Material 3 Expressive
     ├── App.kt                   # 하단 pill 네비 + 4탭 페이저
     ├── SplashScreen.kt          # 스플래시 (자동 로그인)
@@ -98,7 +95,6 @@ app/src/main/kotlin/com/umicorp/autolotto/
 
 - 계정 정보는 **EncryptedSharedPreferences**(Android Keystore)로 암호화 저장 (Flutter판에서 자동 마이그레이션)
 - 로그인 비밀번호는 동행복권 서버의 **RSA 공개키로 암호화** 후 전송
-- 인앱 업데이트 APK는 다운로드 크기 상한(50MB)과 설치 전 **패키지명·서명 인증서 검증**을 거침 — 불일치 시 폐기 (fail-closed)
 - 앱 코드에 로그 출력 없음, 릴리즈 빌드는 R8 축소·난독화 적용
 - 모든 API 통신은 HTTPS
 

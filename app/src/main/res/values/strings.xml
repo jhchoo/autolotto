@@ -172,11 +172,6 @@
     <string name="cdShowPassword">비밀번호 표시</string>
     <string name="cdHidePassword">비밀번호 숨기기</string>
 
-    <!-- 인앱 업데이트(사이드로드) -->
-    <string name="updateAvailableTitle">새 버전 %1$s</string>
-    <string name="buttonUpdateNow">업데이트</string>
-    <string name="buttonUpdateLater">나중에</string>
-    <string name="updateDownloading">다운로드 중…</string>
 
     <!-- 즉시 구매 -->
     <string name="buttonInstantPurchase">⚡ 지금 바로 구매</string>

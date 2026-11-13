@@ -9,8 +9,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- 사이드로드 인앱 업데이트: 다운로드한 APK를 시스템 인스톨러로 설치 (Play 미출시라 사용 가능). -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".AutoLottoApplication"
@@ -52,16 +50,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- 인앱 업데이트: 다운로드한 APK를 content:// 로 인스톨러에 넘기기 위한 FileProvider. -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.fileprovider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
 
     </application>
 </manifest>

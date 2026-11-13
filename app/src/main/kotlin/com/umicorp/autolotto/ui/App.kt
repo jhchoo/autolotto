@@ -35,7 +35,6 @@ import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -57,11 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.umicorp.autolotto.ui.theme.MotionSpecs
 import androidx.compose.ui.platform.LocalConfiguration
@@ -77,8 +72,6 @@ import kotlinx.coroutines.delay
 import com.umicorp.autolotto.R
 import com.umicorp.autolotto.appContainer
 import com.umicorp.autolotto.scheduler.Notifications
-import com.umicorp.autolotto.update.AppUpdater
-import com.umicorp.autolotto.update.UpdateInfo
 import com.umicorp.autolotto.ui.screen.HistoryScreen
 import com.umicorp.autolotto.ui.screen.HomeScreen
 import com.umicorp.autolotto.ui.screen.NumberScreen
@@ -157,9 +150,7 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
         }
     }
 
-    // 사이드로드 인앱 업데이트: 셸 진입 시 1회 확인 → 새 버전이면 다이얼로그.
     val container = LocalContext.current.appContainer
-    val updateInfo by container.updateInfo.collectAsState()
     val serverHealth by container.serverHealth.collectAsState()
     var showMaintenanceDialog by remember { mutableStateOf(false) }
 
@@ -168,8 +159,6 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
             showMaintenanceDialog = true
         }
     }
-
-    LaunchedEffect(Unit) { runCatching { container.checkForUpdate() } }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -205,8 +194,6 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
         }
     }
 
-    updateInfo?.let { UpdateDialog(it) }
-
     if (showMaintenanceDialog) {
         AlertDialog(
             onDismissRequest = { showMaintenanceDialog = false },
@@ -228,96 +215,6 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
     }
 }
 
-/**
- * 새 버전 안내 다이얼로그(사이드로드). "업데이트" → 설치권한 확인 → APK 다운로드 → 시스템 인스톨러.
- * 다운로드 중엔 진행바 표시 + 버튼 잠금.
- */
-@Composable
-private fun UpdateDialog(info: UpdateInfo) {
-    val context = LocalContext.current
-    val container = context.appContainer
-    val progress by container.updateProgress.collectAsState()
-    val scope = rememberCoroutineScope()
-    val downloading = progress != null
-
-    AlertDialog(
-        onDismissRequest = { if (!downloading) container.dismissUpdate() },
-        title = { Text(stringResource(R.string.updateAvailableTitle, info.versionName), fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                if (info.notes.isNotBlank()) {
-                    Text(
-                        markdownLite(info.notes),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (downloading) {
-                    Spacer(Modifier.height(16.dp))
-                    LinearProgressIndicator(
-                        progress = { progress ?: 0f },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(stringResource(R.string.updateDownloading), style = MaterialTheme.typography.labelMedium)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = !downloading,
-                onClick = {
-                    if (!AppUpdater.canInstall(context)) {
-                        // 최초 1회: "이 출처의 앱 설치" 허용 화면으로 유도(허용 후 다시 탭).
-                        context.startActivity(AppUpdater.installPermissionIntent(context))
-                    } else {
-                        scope.launch {
-                            val file = container.downloadUpdate(context)
-                            if (file != null) AppUpdater.install(context, file)
-                        }
-                    }
-                },
-            ) { Text(stringResource(R.string.buttonUpdateNow), fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = {
-            if (!downloading) {
-                TextButton(onClick = { container.dismissUpdate() }) {
-                    Text(stringResource(R.string.buttonUpdateLater))
-                }
-            }
-        },
-    )
-}
-
-/** [markdownLite]의 인라인 `**굵게**` 처리. 짝이 안 맞으면 원문 그대로. */
-private fun AnnotatedString.Builder.appendInlineBold(text: String) {
-    var rest = text
-    while (true) {
-        val s = rest.indexOf("**")
-        val e = if (s >= 0) rest.indexOf("**", s + 2) else -1
-        if (s < 0 || e < 0) { append(rest); return }
-        append(rest.substring(0, s))
-        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(rest.substring(s + 2, e)) }
-        rest = rest.substring(e + 2)
-    }
-}
-
-/**
- * 릴리스 노트용 초경량 마크다운 렌더링: `#` 제목(굵게), `- ` 목록(•), `**굵게**`만 지원.
- * GitHub 릴리스 body가 이 부분집합을 벗어나면 해당 문법은 원문 그대로 보인다. (테스트 대상)
- */
-internal fun markdownLite(src: String): AnnotatedString = buildAnnotatedString {
-    src.trim().lines().forEachIndexed { i, raw ->
-        if (i > 0) append('\n')
-        val line = raw.trimEnd()
-        when {
-            line.startsWith("#") ->
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(line.trimStart('#').trim()) }
-            line.startsWith("- ") -> { append("•  "); appendInlineBold(line.removePrefix("- ")) }
-            else -> appendInlineBold(line)
-        }
-    }
-}
 
 /**
  * 플로팅 알약(pill) 하단 네비. M3 NavigationBar 대신 크림 위에 떠 있는 둥근 pill.

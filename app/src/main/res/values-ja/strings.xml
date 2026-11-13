@@ -166,11 +166,6 @@
     <string name="cdShowPassword">パスワードを表示</string>
     <string name="cdHidePassword">パスワードを非表示</string>
 
-    <!-- アプリ内アップデート(サイドロード) -->
-    <string name="updateAvailableTitle">新バージョン %1$s</string>
-    <string name="buttonUpdateNow">アップデート</string>
-    <string name="buttonUpdateLater">後で</string>
-    <string name="updateDownloading">ダウンロード中…</string>
 
     <!-- 即時購入 -->
     <string name="buttonInstantPurchase">⚡ 今すぐ購入</string>

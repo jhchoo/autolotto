@@ -166,11 +166,6 @@
     <string name="cdShowPassword">Show password</string>
     <string name="cdHidePassword">Hide password</string>
 
-    <!-- In-app update (sideload) -->
-    <string name="updateAvailableTitle">New version %1$s</string>
-    <string name="buttonUpdateNow">Update</string>
-    <string name="buttonUpdateLater">Later</string>
-    <string name="updateDownloading">Downloading…</string>
 
     <!-- Instant purchase -->
     <string name="buttonInstantPurchase">⚡ Buy Now</string>

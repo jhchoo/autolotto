@@ -16,9 +16,6 @@ import com.umicorp.autolotto.dhlottery.ResultService
 import com.umicorp.autolotto.scheduler.AlarmScheduler
 import com.umicorp.autolotto.scheduler.BalanceAlert
 import com.umicorp.autolotto.scheduler.PurchaseLock
-import com.umicorp.autolotto.update.AppUpdater
-import com.umicorp.autolotto.update.UpdateInfo
-import java.io.File
 import com.umicorp.autolotto.ui.vm.HistoryViewModel
 import com.umicorp.autolotto.ui.vm.HomeViewModel
 import com.umicorp.autolotto.ui.vm.NumberViewModel
@@ -106,12 +103,6 @@ class AppContainer(context: Context) {
     private val _lastPurchasedRound = MutableStateFlow(0)
     val lastPurchasedRound: StateFlow<Int> = _lastPurchasedRound.asStateFlow()
 
-    // === 인앱 업데이트 (사이드로드 배포) ===
-    private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
-    val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
-
-    private val _updateProgress = MutableStateFlow<Float?>(null)  // null=대기, 0..1=다운로드 중
-    val updateProgress: StateFlow<Float?> = _updateProgress.asStateFlow()
 
     // === 프로세스 스코프 하이드레이션 (crosscheck: rememberSaveable 복원으로 스플래시가
     //     스킵돼도 AppRoot가 재호출 — 성공 1회, 실패는 재시도 가능해야 한다) ===
@@ -193,21 +184,6 @@ class AppContainer(context: Context) {
         }
     }
 
-    /** GitHub 릴리스에서 새 버전 확인 → updateInfo 세팅(없으면 null). AppShell 진입 시 호출. */
-    suspend fun checkForUpdate() {
-        _updateInfo.value = AppUpdater.check(BuildConfig.VERSION_NAME)
-    }
-
-    fun dismissUpdate() { _updateInfo.value = null }
-
-    /** 감지된 업데이트 APK 다운로드 → 성공 시 File. 진행률은 [updateProgress]. */
-    suspend fun downloadUpdate(context: Context): File? {
-        val info = _updateInfo.value ?: return null
-        _updateProgress.value = 0f
-        val file = AppUpdater.download(context, info.downloadUrl) { p -> _updateProgress.value = p }
-        _updateProgress.value = null
-        return file
-    }
 
     // === 자동 로그인 (crosscheck: 공유 세션의 모든 auth.login/logout은 loginMutex로 직렬화.
     //     락 순서 규칙: PurchaseLock 안에서 loginMutex 획득은 허용, 역방향 중첩 금지.
