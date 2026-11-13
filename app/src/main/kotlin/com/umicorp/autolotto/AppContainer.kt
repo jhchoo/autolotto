@@ -158,13 +158,10 @@ class AppContainer(context: Context) {
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
         runCatching { scheduler.rescheduleAll() }
 
-        // 앱 내부 저장소 CSV 파일 로드 (없으면 assets/winning_numbers.csv 복사 후 로드)
+        // 로또 당첨번호 DB 초기화 (DB가 비어있으면 assets/winning_numbers.csv에서 시드 주입) 및 메모리 캐싱
         CoroutineScope(Dispatchers.IO).launch {
             runCatching {
-                val loaded = com.umicorp.autolotto.data.LottoHistoryStore.loadFromCsv(appContext)
-                if (!loaded.isNullOrEmpty()) {
-                    com.umicorp.autolotto.data.LottoHistoryStore.saveWinningResults(appContext, loaded)
-                }
+                com.umicorp.autolotto.data.LottoHistoryStore.ensureDatabaseSeeded(appContext)
             }
         }
     }
@@ -204,15 +201,12 @@ class AppContainer(context: Context) {
             if (lastSyncedLatestRound == latestRound) return@withContext
             _isHistoryLoading.value = true
             try {
-                // 메모리에 없으면 CSV 또는 DB에서 로드
+                // 메모리에 없으면 DB에서 로드 (DB도 비어있으면 에셋에서 시드 주입)
                 if (com.umicorp.autolotto.data.LottoHistoryStore.globalWinningResults.isEmpty()) {
-                    val loaded = com.umicorp.autolotto.data.LottoHistoryStore.loadFromCsv(appContext)
-                    if (!loaded.isNullOrEmpty()) {
-                        com.umicorp.autolotto.data.LottoHistoryStore.saveWinningResults(appContext, loaded)
-                    }
+                    com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(appContext)
                 }
 
-                // 저장된 마지막 회차와 비교하여 최신 회차까지 API 조회 후 CSV 및 DB에 저장
+                // 저장된 마지막 회차와 비교하여 최신 회차까지 API 조회 후 DB에 저장
                 val lastStoredRound = com.umicorp.autolotto.data.LottoHistoryStore.getLatestStoredRound(appContext) ?: 0
                 if (lastStoredRound < latestRound) {
                     val startRound = lastStoredRound + 1
@@ -270,19 +264,21 @@ class AppContainer(context: Context) {
             }
             _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
         } catch (e: TimeoutCancellationException) {
-            // 30초 타임아웃 발생 -> 서버가 점검 중인지 확인
-            val health = com.umicorp.autolotto.dhlottery.ServerHealthChecker.checkHealth(appContext)
-            if (health is com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance) {
-                _serverHealth.value = health
-                throw DhlotteryException("MAINTENANCE:${health.reason ?: "동행복권 시스템 점검 중"}")
-            }
-            throw DhlotteryException("TIMEOUT:${timeoutMillis / 1000}")
+            // 30초 타임아웃 발생 -> 동행복권 사이트 서버 문제
+            _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance("서버 응답 지연 (동행복권 사이트 문제)")
+            throw DhlotteryException("SERVER_ERROR:동행복권 서버 응답 시간이 초과되었습니다. 현재 동행복권 사이트에 문제가 발생했습니다.")
         } catch (e: DhlotteryException) {
             if (e.message?.startsWith("MAINTENANCE") == true) {
                 val reason = e.message?.removePrefix("MAINTENANCE:")?.takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
                 _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
+            } else if (e.message?.startsWith("SERVER_ERROR") == true) {
+                val reason = e.message?.removePrefix("SERVER_ERROR:")?.takeIf { it.isNotEmpty() } ?: "동행복권 사이트 서버 문제"
+                _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
             }
             throw e
+        } catch (e: Exception) {
+            _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance("동행복권 사이트 서버 오류")
+            throw DhlotteryException("SERVER_ERROR:동행복권 사이트 서버 오류: ${e.message ?: "연결 실패"}")
         }
     }
 
@@ -330,16 +326,15 @@ class AppContainer(context: Context) {
             } catch (e: Exception) {
                 _autoLoginFailed.value = true
                 val msg = (e as? DhlotteryException)?.message.orEmpty()
-                if (msg.startsWith("MAINTENANCE")) {
-                    val reason = msg.removePrefix("MAINTENANCE:").takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
-                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
-                    autoLoginRetryable = true
-                } else if (msg == "INVALID_CREDENTIALS") {
-                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
-                    autoLoginRetryable = false
-                } else {
-                    autoLoginRetryable = true
+                val reason = when {
+                    msg.startsWith("MAINTENANCE") -> msg.removePrefix("MAINTENANCE:").takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
+                    msg.startsWith("SERVER_ERROR") -> msg.removePrefix("SERVER_ERROR:").takeIf { it.isNotEmpty() } ?: "동행복권 사이트 서버 문제"
+                    msg.startsWith("TIMEOUT") -> "동행복권 서버 응답 시간 초과"
+                    msg.contains("INVALID_CREDENTIALS") -> "로그인 확인 실패 (동행복권 서버 문제 가능)"
+                    else -> "동행복권 사이트 서버 오류"
                 }
+                _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
+                autoLoginRetryable = true
             } finally {
                 _isLoggingIn.value = false
             }
@@ -621,11 +616,8 @@ fun resolveSlotsForPurchase(
             s.isEmpty() -> autoCount++
             s.size == 1 && s[0] == -1 -> {
                 val randomStrategy = strategies.random()
-                val analysis = if (randomStrategy.type == com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS) {
-                    com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, 50)
-                } else {
-                    com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyze(history)
-                }
+                // 스마트 추천시 최근 200회 정보만을 사용
+                val analysis = com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, 200)
                 val generated = com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(randomStrategy, analysis)
                 manualNumbers.add(generated)
             }

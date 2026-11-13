@@ -2,11 +2,13 @@ package com.umicorp.autolotto.data
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
 /**
- * 로또 당첨번호 저장을 위한 SQLite Light DB
+ * 로또 당첨번호 영속 저장을 위한 단일 SQLite DB.
+ * 모든 당첨번호의 단일 진실 공급원(SSOT)으로 동작한다.
  */
 class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
 
@@ -23,15 +25,22 @@ class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null,
                 n6 INTEGER NOT NULL,
                 bonus INTEGER NOT NULL,
                 date TEXT NOT NULL,
-                prize1st LONG NOT NULL
+                prize1st LONG NOT NULL,
+                winnerCount1st INTEGER NOT NULL DEFAULT 0
             )
             """.trimIndent(),
         )
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_WINNING")
-        onCreate(db)
+        if (oldVersion < 2) {
+            runCatching {
+                db.execSQL("ALTER TABLE $TABLE_WINNING ADD COLUMN winnerCount1st INTEGER NOT NULL DEFAULT 0")
+            }.onFailure {
+                db.execSQL("DROP TABLE IF EXISTS $TABLE_WINNING")
+                onCreate(db)
+            }
+        }
     }
 
     /** 당첨 결과 목록 일괄 삽입/갱신 */
@@ -53,6 +62,7 @@ class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null,
                     put("bonus", r.bonus)
                     put("date", r.date)
                     put("prize1st", r.prize1st)
+                    put("winnerCount1st", r.winnerCount1st)
                 }
                 db.insertWithOnConflict(TABLE_WINNING, null, values, SQLiteDatabase.CONFLICT_REPLACE)
             }
@@ -68,23 +78,13 @@ class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null,
         val db = readableDatabase
         val cursor = db.query(
             TABLE_WINNING,
-            arrayOf("round", "n1", "n2", "n3", "n4", "n5", "n6", "bonus", "date", "prize1st"),
+            COLUMNS,
             null, null, null, null, "round ASC",
         )
         cursor.use { c ->
             while (c.moveToNext()) {
-                val round = c.getInt(0)
-                val nums = listOf(c.getInt(1), c.getInt(2), c.getInt(3), c.getInt(4), c.getInt(5), c.getInt(6))
-                val bonus = c.getInt(7)
-                val date = c.getString(8)
-                val prize1st = c.getLong(9)
-                map[round] = WinningResult(
-                    round = round,
-                    numbers = nums,
-                    bonus = bonus,
-                    date = date,
-                    prize1st = prize1st,
-                )
+                val item = cursorToWinningResult(c)
+                map[item.round] = item
             }
         }
         return map
@@ -96,27 +96,14 @@ class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null,
         val db = readableDatabase
         val cursor = db.query(
             TABLE_WINNING,
-            arrayOf("round", "n1", "n2", "n3", "n4", "n5", "n6", "bonus", "date", "prize1st"),
+            COLUMNS,
             "round >= ?",
             arrayOf(startRound.toString()),
             null, null, "round DESC",
         )
         cursor.use { c ->
             while (c.moveToNext()) {
-                val round = c.getInt(0)
-                val nums = listOf(c.getInt(1), c.getInt(2), c.getInt(3), c.getInt(4), c.getInt(5), c.getInt(6))
-                val bonus = c.getInt(7)
-                val date = c.getString(8)
-                val prize1st = c.getLong(9)
-                list.add(
-                    WinningResult(
-                        round = round,
-                        numbers = nums,
-                        bonus = bonus,
-                        date = date,
-                        prize1st = prize1st,
-                    ),
-                )
+                list.add(cursorToWinningResult(c))
             }
         }
         return list
@@ -135,27 +122,14 @@ class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null,
 
         val cursor = db.query(
             TABLE_WINNING,
-            arrayOf("round", "n1", "n2", "n3", "n4", "n5", "n6", "bonus", "date", "prize1st"),
+            COLUMNS,
             "round >= ? AND round <= ?",
             arrayOf(minR.toString(), maxR.toString()),
             null, null, "round DESC",
         )
         cursor.use { c ->
             while (c.moveToNext()) {
-                val round = c.getInt(0)
-                val nums = listOf(c.getInt(1), c.getInt(2), c.getInt(3), c.getInt(4), c.getInt(5), c.getInt(6))
-                val bonus = c.getInt(7)
-                val date = c.getString(8)
-                val prize1st = c.getLong(9)
-                list.add(
-                    WinningResult(
-                        round = round,
-                        numbers = nums,
-                        bonus = bonus,
-                        date = date,
-                        prize1st = prize1st,
-                    ),
-                )
+                list.add(cursorToWinningResult(c))
             }
         }
         return list
@@ -177,7 +151,7 @@ class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null,
 
         val cursor = db.query(
             TABLE_WINNING,
-            arrayOf("round", "n1", "n2", "n3", "n4", "n5", "n6", "bonus", "date", "prize1st"),
+            COLUMNS,
             selection,
             selectionArgs,
             null, null, "round DESC",
@@ -185,20 +159,7 @@ class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null,
         )
         cursor.use { c ->
             while (c.moveToNext()) {
-                val round = c.getInt(0)
-                val nums = listOf(c.getInt(1), c.getInt(2), c.getInt(3), c.getInt(4), c.getInt(5), c.getInt(6))
-                val bonus = c.getInt(7)
-                val date = c.getString(8)
-                val prize1st = c.getLong(9)
-                list.add(
-                    WinningResult(
-                        round = round,
-                        numbers = nums,
-                        bonus = bonus,
-                        date = date,
-                        prize1st = prize1st,
-                    ),
-                )
+                list.add(cursorToWinningResult(c))
             }
         }
         return list
@@ -233,9 +194,30 @@ class LottoDatabase(context: Context) : SQLiteOpenHelper(context, DB_NAME, null,
         return null
     }
 
+    private fun cursorToWinningResult(c: Cursor): WinningResult {
+        val round = c.getInt(0)
+        val nums = listOf(c.getInt(1), c.getInt(2), c.getInt(3), c.getInt(4), c.getInt(5), c.getInt(6))
+        val bonus = c.getInt(7)
+        val date = c.getString(8)
+        val prize1st = c.getLong(9)
+        val winnerCount1st = if (c.columnCount > 10) c.getInt(10) else 0
+        return WinningResult(
+            round = round,
+            numbers = nums,
+            bonus = bonus,
+            date = date,
+            prize1st = prize1st,
+            winnerCount1st = winnerCount1st,
+        )
+    }
+
     companion object {
         private const val DB_NAME = "lotto_history.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
         private const val TABLE_WINNING = "winning_numbers"
+
+        private val COLUMNS = arrayOf(
+            "round", "n1", "n2", "n3", "n4", "n5", "n6", "bonus", "date", "prize1st", "winnerCount1st",
+        )
     }
 }

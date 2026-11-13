@@ -29,4 +29,38 @@ class LottoHistoryStoreTest {
         assertEquals(2, f2.count)
         assertEquals(2, f3.count)
     }
+
+    @Test
+    fun storeCache_maintainsMemoryStateAndQueries() {
+        val sampleMap = mapOf(
+            1150 to WinningResult(
+                round = 1150,
+                numbers = listOf(3, 4, 12, 18, 24, 37),
+                bonus = 45,
+                date = "2024-12-14",
+                prize1st = 2641042782L,
+                winnerCount1st = 10,
+            ),
+            1151 to WinningResult(
+                round = 1151,
+                numbers = listOf(1, 8, 15, 23, 31, 40),
+                bonus = 42,
+                date = "2024-12-21",
+                prize1st = 2100000000L,
+                winnerCount1st = 12,
+            ),
+        )
+        LottoHistoryStore.setGlobalWinningResults(sampleMap)
+
+        assertEquals(2, LottoHistoryStore.getTotalCount())
+        assertEquals(1151, LottoHistoryStore.getLatestStoredRound())
+        assertEquals(sampleMap, LottoHistoryStore.globalWinningResults)
+
+        val range = LottoHistoryStore.getWinningResultsRange(startRound = 1150, endRound = 1151)
+        assertEquals(2, range.size)
+        assertEquals(1151, range[0].round)
+        assertEquals(1150, range[1].round)
+        assertEquals(12, range[0].winnerCount1st)
+        assertEquals(10, range[1].winnerCount1st)
+    }
 }

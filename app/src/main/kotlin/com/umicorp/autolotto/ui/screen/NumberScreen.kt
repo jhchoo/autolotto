@@ -1068,7 +1068,7 @@ private fun SmartGeneratorDialog(
     }
 
     val analysis = remember(isHistoryLoading, selectedStrategy.type, context) {
-        vm.getFrequencyAnalysis(context, recentCount = if (selectedStrategy.type == StrategyType.HOT_FOCUS) 50 else null)
+        vm.getFrequencyAnalysis(context, recentCount = 200)
     }
 
     AlertDialog(

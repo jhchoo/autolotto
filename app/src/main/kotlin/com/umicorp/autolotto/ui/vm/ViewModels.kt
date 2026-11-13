@@ -164,40 +164,28 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
     /** 실시간 당첨 통계 분석 정보 조회 (recentCount 지정 시 최근 N회차 분석) */
     fun getFrequencyAnalysis(
         context: android.content.Context,
-        recentCount: Int? = null,
+        recentCount: Int = 200,
     ): com.umicorp.autolotto.generator.FrequencyAnalysis {
         val history = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(context)
-        return if (recentCount != null) {
-            com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, recentCount)
-        } else {
-            com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyze(history)
-        }
+        return com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, recentCount)
     }
 
-    /** 지정한 전략과 분석 데이터에 맞춰 6개 로또 번호 1세트 생성 */
+    /** 지정한 전략과 분석 데이터에 맞춰 6개 로또 번호 1세트 생성 (스마트 추천시 최근 200회 정보만을 사용) */
     fun generateSmartNumbers(
         context: android.content.Context,
         strategy: com.umicorp.autolotto.generator.LottoStrategy = com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
     ): List<Int> {
-        val analysis = if (strategy.type == com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS) {
-            getFrequencyAnalysis(context, recentCount = 50)
-        } else {
-            getFrequencyAnalysis(context)
-        }
+        val analysis = getFrequencyAnalysis(context, recentCount = 200)
         return com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(strategy, analysis)
     }
 
-    /** 지정한 전략과 분석 데이터에 맞춰 N개의 서로 다른 6개 로또 번호 세트 생성 */
+    /** 지정한 전략과 분석 데이터에 맞춰 N개의 서로 다른 6개 로또 번호 세트 생성 (스마트 추천시 최근 200회 정보만을 사용) */
     fun generateMultipleSmartNumbers(
         context: android.content.Context,
         count: Int,
         strategy: com.umicorp.autolotto.generator.LottoStrategy = com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
     ): List<List<Int>> {
-        val analysis = if (strategy.type == com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS) {
-            getFrequencyAnalysis(context, recentCount = 50)
-        } else {
-            getFrequencyAnalysis(context)
-        }
+        val analysis = getFrequencyAnalysis(context, recentCount = 200)
         val result = mutableListOf<List<Int>>()
         var attempts = 0
         while (result.size < count && attempts < 100) {
@@ -512,13 +500,13 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         return com.umicorp.autolotto.data.LottoHistoryStore.getTotalCount(context)
     }
 
-    /** 로그인 진행/결과 (스낵바·다이얼로그용). 원본 INVALID_CREDENTIALS 분기 유지. */
-    /** 로그인 진행/결과 (스낵바·다이얼로그용). 원본 INVALID_CREDENTIALS 분기 유지 + 점검/타임아웃 구분. */
+    /** 로그인 진행/결과 (스낵바·다이얼로그용). */
     sealed interface LoginState {
         data object Idle : LoginState
         data object InProgress : LoginState
         data object Success : LoginState
         data object InvalidCredentials : LoginState
+        data class ServerError(val message: String? = null) : LoginState
         data class Maintenance(val reason: String? = null) : LoginState
         data class Timeout(val seconds: Int) : LoginState
         data class Error(val message: String? = null) : LoginState
@@ -542,12 +530,19 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 val reason = msg.removePrefix("MAINTENANCE:").takeIf { it.isNotBlank() }
                 LoginState.Maintenance(reason)
             }
+            msg.startsWith("SERVER_ERROR") -> {
+                val reason = msg.removePrefix("SERVER_ERROR:").takeIf { it.isNotBlank() }
+                LoginState.ServerError(reason)
+            }
             msg.startsWith("TIMEOUT") -> {
                 val sec = msg.removePrefix("TIMEOUT:").toIntOrNull() ?: 30
                 LoginState.Timeout(sec)
             }
+            msg.contains("verify_http") -> {
+                LoginState.ServerError("동행복권 서버 오류 (HTTP 응답 코드: ${msg.substringAfter("verify_http_")})")
+            }
             msg.contains("INVALID_CREDENTIALS") -> LoginState.InvalidCredentials
-            else -> LoginState.Error(msg.takeIf { it.isNotBlank() })
+            else -> LoginState.ServerError(msg.takeIf { it.isNotBlank() })
         }
     }
 

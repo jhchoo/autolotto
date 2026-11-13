@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -56,6 +58,7 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -184,10 +187,11 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                 showLogin = false
                 context.resources.getString(R.string.snackbarLoginSuccess)
             }
-            LoginState.InvalidCredentials -> "❌ " + context.resources.getString(R.string.errorInvalidCredentials)
-            is LoginState.Maintenance -> "🚧 " + (state.reason ?: context.resources.getString(R.string.maintenanceBannerNotice))
-            is LoginState.Timeout -> "⏱️ " + context.resources.getString(R.string.snackbarLoginTimeout, state.seconds)
-            is LoginState.Error -> "❌ " + (state.message ?: context.resources.getString(R.string.snackbarLoginFailed))
+            LoginState.InvalidCredentials -> "⚠️ 동행복권 사이트 서버 문제: 현재 동행복권 사이트 오류로 인해 로그인을 확인할 수 없습니다. (사이트 점검 또는 서버 장애)"
+            is LoginState.ServerError -> "🚨 동행복권 서버 오류: " + (state.message ?: "현재 사이트 오류로 인해 로그인이 불가능합니다. 잠시 후 다시 시도해주세요.")
+            is LoginState.Maintenance -> "🚧 동행복권 시스템 점검 중: " + (state.reason ?: "동행복권 시스템 점검 또는 서버 작업 중입니다.")
+            is LoginState.Timeout -> "⏱️ 동행복권 서버 응답 지연: 사이트 접속 문제로 시간이 초과되었습니다. 잠시 후 다시 시도해주세요."
+            is LoginState.Error -> "🚨 동행복권 서버 문제: " + (state.message ?: "동행복권 사이트 오류로 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.")
             else -> null
         }
         if (msg != null) {
@@ -324,6 +328,18 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
             }
             Spacer(Modifier.height(24.dp))
 
+            // ===== 당첨 번호 조회 =====
+            SettingsSection(stringResource(R.string.sectionWinningHistory)) {
+                ListItem(
+                    modifier = Modifier.clickable { showWinningHistoryScreen = true },
+                    colors = transparentListColors(),
+                    leadingContent = { SettingIcon(Icons.Rounded.ConfirmationNumber, LgAmber) },
+                    headlineContent = { Text(stringResource(R.string.winningHistoryTitle), fontWeight = FontWeight.Bold) },
+                    trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+
             // ===== 자동 구매 =====
             SettingsSection(stringResource(R.string.sectionAutoPurchase)) {
                 SwitchRow(
@@ -400,18 +416,6 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                         trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     )
                 }
-            }
-            Spacer(Modifier.height(24.dp))
-
-            // ===== 당첨 번호 조회 =====
-            SettingsSection(stringResource(R.string.sectionWinningHistory)) {
-                ListItem(
-                    modifier = Modifier.clickable { showWinningHistoryScreen = true },
-                    colors = transparentListColors(),
-                    leadingContent = { SettingIcon(Icons.Rounded.ConfirmationNumber, LgAmber) },
-                    headlineContent = { Text(stringResource(R.string.winningHistoryTitle), fontWeight = FontWeight.Bold) },
-                    trailingContent = { Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                )
             }
             Spacer(Modifier.height(24.dp))
 
@@ -780,6 +784,41 @@ private fun LoginDialog(
                         )
                     }
                 }
+
+                val errorMessage = when (loginState) {
+                    is LoginState.ServerError -> loginState.message ?: "동행복권 사이트 서버 문제로 로그인을 완료할 수 없습니다. 잠시 후 다시 시도해주세요."
+                    is LoginState.Maintenance -> loginState.reason ?: "동행복권 시스템 점검 중입니다. 잠시 후 다시 시도해주세요."
+                    is LoginState.Timeout -> "동행복권 서버 응답 시간이 초과되었습니다. 사이트 상태를 확인 후 다시 시도해주세요."
+                    is LoginState.InvalidCredentials -> "동행복권 사이트 서버 문제로 로그인을 확인할 수 없습니다. (사이트 오류 또는 점검 중)"
+                    is LoginState.Error -> loginState.message ?: "동행복권 서버 문제로 로그인에 실패했습니다."
+                    else -> null
+                }
+                if (errorMessage != null && !isLoading) {
+                    Spacer(Modifier.height(10.dp))
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.Rounded.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = errorMessage,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -909,10 +948,10 @@ fun WinningHistoryScreen(
 
     val latestStored = remember(isHistoryLoading, context) { vm.getLatestStoredRound(context) }
 
-    var startRoundText by remember(latestStored) { mutableStateOf((maxOf(1, latestStored - 19)).toString()) }
+    var startRoundText by remember(latestStored) { mutableStateOf((maxOf(1, latestStored - 49)).toString()) }
     var endRoundText by remember(latestStored) { mutableStateOf(latestStored.toString()) }
 
-    var queryStartRound by remember(latestStored) { mutableIntStateOf(maxOf(1, latestStored - 19)) }
+    var queryStartRound by remember(latestStored) { mutableIntStateOf(maxOf(1, latestStored - 49)) }
     var queryEndRound by remember(latestStored) { mutableIntStateOf(latestStored) }
 
     fun doSearch() {
@@ -920,7 +959,7 @@ fun WinningHistoryScreen(
         imm?.hideSoftInputFromWindow(view.windowToken, 0)
         keyboardController?.hide()
 
-        var s = startRoundText.toIntOrNull() ?: 1
+        var s = startRoundText.toIntOrNull() ?: maxOf(1, latestStored - 49)
         var e = endRoundText.toIntOrNull() ?: latestStored
 
         if (s > latestStored) {
@@ -1056,11 +1095,11 @@ fun WinningHistoryScreen(
                     )
                 }
             } else {
-                Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    results.forEach { r ->
+                    items(items = results, key = { it.round }) { r ->
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -1101,13 +1140,75 @@ fun WinningHistoryScreen(
                                     )
                                     LottoBall(n = r.bonus, size = 32.dp)
                                 }
+                                if (r.prize1st > 0 || r.winnerCount1st > 0) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        val prizeFormatted = if (r.prize1st > 0) {
+                                            String.format(java.util.Locale.KOREA, "%,d 원", r.prize1st)
+                                        } else {
+                                            ""
+                                        }
+                                        Text(
+                                            text = prizeFormatted,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+
+                                        val netPrize = calculateNetPrize(r.prize1st)
+                                        val netPrizeUnit = formatNetPrizeUnit(netPrize)
+                                        val rightText = when {
+                                            r.winnerCount1st > 0 && netPrizeUnit.isNotBlank() -> "${r.winnerCount1st}명, 세후 $netPrizeUnit"
+                                            r.winnerCount1st > 0 -> "${r.winnerCount1st}명"
+                                            netPrizeUnit.isNotBlank() -> "세후 $netPrizeUnit"
+                                            else -> ""
+                                        }
+                                        Text(
+                                            text = rightText,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
-                    Spacer(Modifier.height(20.dp))
+                    item {
+                        Spacer(Modifier.height(20.dp))
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * 1등 당첨금 세후 실수령액 계산:
+ * • 3억 원 이하: 22% (소득세 20% + 지방소득세 2%)
+ * • 3억 원 초과분: 33% (소득세 30% + 지방소득세 3%)
+ */
+private fun calculateNetPrize(prize: Long): Long {
+    if (prize <= 0L) return 0L
+    return if (prize <= 300_000_000L) {
+        prize * 78L / 100L
+    } else {
+        val over300m = prize - 300_000_000L
+        234_000_000L + (over300m * 67L / 100L)
+    }
+}
+
+/** 세후 금액을 억원 단위로 어림(반올림) 포맷팅 */
+private fun formatNetPrizeUnit(netPrize: Long): String {
+    if (netPrize <= 0L) return ""
+    val eok = kotlin.math.round(netPrize.toDouble() / 100_000_000.0).toLong()
+    return if (eok > 0L) {
+        "${eok}억원"
+    } else {
+        val man = kotlin.math.round(netPrize.toDouble() / 10_000.0).toLong()
+        "${man}만원"
     }
 }
 

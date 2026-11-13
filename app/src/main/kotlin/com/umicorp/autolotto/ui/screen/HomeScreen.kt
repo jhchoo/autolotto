@@ -207,8 +207,13 @@ fun HomeScreen(
                                 modifier = Modifier.size(20.dp),
                             )
                             Spacer(Modifier.width(8.dp))
+                            val bannerText = when (val h = serverHealth) {
+                                is com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance ->
+                                    h.reason?.takeIf { it.isNotBlank() } ?: stringResource(R.string.maintenanceBannerNotice)
+                                else -> stringResource(R.string.maintenanceBannerNotice)
+                            }
                             Text(
-                                stringResource(R.string.maintenanceBannerNotice),
+                                bannerText,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Bold,

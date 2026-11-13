@@ -6,11 +6,11 @@ import java.time.LocalDate
 import java.util.Locale
 
 /**
- * 당첨 번호 CSV 파일 입출력 헬퍼.
+ * 당첨 번호 CSV 파일 헬퍼.
  *
- * 앱 시작 시 에셋의 winning_numbers.csv를 앱 내부 저장소(context.filesDir/winning_numbers.csv)로
- * 복사하여 보관하고, 최신 회차를 여기에 추가·갱신한다.
- * 공용 외부저장소 접근이나 별도 저장소 권한 없이 앱 내부 저장소만을 사용한다.
+ * `assets/winning_numbers.csv`를 읽어 로컬 SQLite DB 초기 시드(Seed) 데이터를 제공한다.
+ * DB 일원화에 따라 앱 내부 저장소 CSV 복사/수정 로직은 제거되고,
+ * 기존에 생성되었던 파일이 있다면 정리(delete)한다.
  */
 object LottoHistoryCsvHelper {
 
@@ -19,74 +19,44 @@ object LottoHistoryCsvHelper {
     /** 로또 1회차 추첨일 (2002-12-07) */
     private val FIRST_ROUND_DATE: LocalDate = LocalDate.of(2002, 12, 7)
 
-    /** 앱 내부 저장소 winning_numbers.csv 파일 객체 */
+    /** 앱 assets 폴더에서 winning_numbers.csv를 읽어 WinningResult 목록으로 파싱 */
+    fun loadSeedResultsFromAssets(context: Context): List<WinningResult> {
+        return runCatching {
+            context.assets.open(FILE_NAME).bufferedReader(Charsets.UTF_8).use { reader ->
+                parseCsv(reader.readText())
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    /** 내부 저장소에 남아있는 레거시 CSV 파일 삭제 (DB 일원화 정리) */
+    fun deleteInternalCsvIfExists(context: Context): Boolean {
+        return runCatching {
+            val file = File(context.filesDir, FILE_NAME)
+            if (file.exists()) {
+                file.delete()
+            } else {
+                false
+            }
+        }.getOrDefault(false)
+    }
+
+    /** 앱 내부 저장소 winning_numbers.csv 파일 객체 (레거시/호환용) */
     fun getInternalCsvFile(context: Context): File {
         return File(context.filesDir, FILE_NAME)
     }
 
-    /**
-     * 앱 시작 시 assets의 winning_numbers.csv를 앱 내부 저장소에 복사 (파일이 없거나 비어있는 경우)
-     */
-    fun copyAssetCsvToInternalStorageIfNeeded(context: Context): File {
-        val internalFile = getInternalCsvFile(context)
-        if (!internalFile.exists() || internalFile.length() == 0L) {
-            runCatching {
-                context.assets.open(FILE_NAME).use { input ->
-                    internalFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            }
-        }
-        return internalFile
-    }
-
-    /**
-     * CSV 파일이 존재하는지 확인 (앱 내부 저장소 확인)
-     */
+    /** CSV 파일이 존재하는지 확인 (레거시/호환용) */
     fun hasCsvFile(context: Context): Boolean {
         val internalFile = getInternalCsvFile(context)
         return internalFile.exists() && internalFile.length() > 0
     }
 
-    /**
-     * CSV 파일을 읽고 WinningResult 목록으로 파싱 (앱 내부 저장소 우선, 없으면 에셋 복사 후 로드)
-     */
-    fun loadResults(context: Context): List<WinningResult>? {
-        return runCatching {
-            val internalFile = copyAssetCsvToInternalStorageIfNeeded(context)
-            if (internalFile.exists() && internalFile.length() > 0) {
-                val parsed = parseCsv(internalFile.readText(Charsets.UTF_8))
-                if (parsed.isNotEmpty()) return@runCatching parsed
-            }
-            null
-        }.getOrNull()
-    }
-
-    /**
-     * 당첨번호 목록을 CSV로 저장 (앱 내부 저장소에만 저장)
-     */
-    fun saveResults(context: Context, results: Collection<WinningResult>): Boolean {
-        if (results.isEmpty()) return false
-        val csvText = toCsv(results)
-
-        return runCatching {
-            val internalFile = getInternalCsvFile(context)
-            internalFile.writeText(csvText, Charsets.UTF_8)
-            internalFile.exists() && internalFile.length() > 0
-        }.getOrDefault(false)
-    }
-
-    /**
-     * 회차 번호로 추첨일 계산 (로또 6/45 1회: 2002-12-07, 매주 토요일)
-     */
+    /** 회차 번호로 추첨일 계산 (로또 6/45 1회: 2002-12-07, 매주 토요일) */
     fun calculateDrawDate(round: Int): String {
         return FIRST_ROUND_DATE.plusWeeks((round - 1).toLong()).toString()
     }
 
-    /**
-     * 당첨번호 목록 -> CSV 문자열 변환 (최신순 내림차순 정렬)
-     */
+    /** 당첨번호 목록 -> CSV 문자열 변환 (최신순 내림차순 정렬) */
     fun toCsv(results: Collection<WinningResult>): String {
         val sb = StringBuilder()
         sb.append("회차,번호1,번호2,번호3,번호4,번호5,번호6,보너스,1등 당첨금,1등 당첨수\n")
@@ -102,9 +72,7 @@ object LottoHistoryCsvHelper {
         return sb.toString()
     }
 
-    /**
-     * CSV 한 줄을 따옴표를 고려하여 분리
-     */
+    /** CSV 한 줄을 따옴표를 고려하여 분리 */
     fun parseCsvLine(line: String): List<String> {
         val tokens = mutableListOf<String>()
         val sb = StringBuilder()
@@ -123,9 +91,7 @@ object LottoHistoryCsvHelper {
         return tokens
     }
 
-    /**
-     * CSV 문자열 -> WinningResult 목록 파싱 (다양한 CSV 포맷 대응)
-     */
+    /** CSV 문자열 -> WinningResult 목록 파싱 (다양한 CSV 포맷 대응) */
     fun parseCsv(csvText: String): List<WinningResult> {
         val results = mutableListOf<WinningResult>()
         val lines = csvText.lines()
