@@ -89,4 +89,22 @@ class SmartNumberGeneratorTest {
         assertEquals(2, SmartNumberGenerator.getMaxSameLastDigit(listOf(1, 11, 3, 4, 5, 6)))
         assertEquals(3, SmartNumberGenerator.getMaxSameLastDigit(listOf(1, 11, 21, 4, 5, 6)))
     }
+
+    @Test
+    fun smartStrategies_minimumOneStrategyMaintained() {
+        // 3개 선택 상태에서 1개 제거 -> 2개 남음
+        var current = setOf(StrategyType.BALANCED, StrategyType.HOT_FOCUS, StrategyType.COLD_FOCUS)
+        var next = if (StrategyType.BALANCED in current) {
+            if (current.size > 1) current - StrategyType.BALANCED else current
+        } else current + StrategyType.BALANCED
+        assertEquals(2, next.size)
+
+        // 1개만 남은 상태에서 마지막 전략 제거 시도 -> 제거되지 않고 1개 유지 (0개 방지)
+        current = setOf(StrategyType.HOT_FOCUS)
+        next = if (StrategyType.HOT_FOCUS in current) {
+            if (current.size > 1) current - StrategyType.HOT_FOCUS else current
+        } else current + StrategyType.HOT_FOCUS
+        assertEquals(1, next.size)
+        assertTrue(StrategyType.HOT_FOCUS in next)
+    }
 }

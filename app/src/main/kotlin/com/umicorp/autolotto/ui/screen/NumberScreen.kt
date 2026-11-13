@@ -64,6 +64,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import com.umicorp.autolotto.generator.LottoStrategy
@@ -74,6 +76,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -83,6 +86,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -158,6 +162,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
 
     var slotMode by remember { mutableStateOf(SlotMode.AUTO) }
     var selected by remember { mutableStateOf(emptySet<Int>()) }
+    var fillRemainingRandomly by remember { mutableStateOf(false) }
 
     fun syncEditorToSlot() {
         val current = games[currentSlot]
@@ -168,14 +173,22 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             else -> SlotMode.AUTO
         }
         selected = if (slotMode == SlotMode.MANUAL) current?.toSet() ?: emptySet() else emptySet()
+        fillRemainingRandomly = slotMode == SlotMode.MANUAL && (current?.size in 1..5)
     }
 
     fun confirmSlot() {
-        if (slotMode == SlotMode.MANUAL && selected.size != 6) return
+        if (slotMode == SlotMode.MANUAL) {
+            val canConfirm = if (fillRemainingRandomly) selected.isNotEmpty() else selected.size == 6
+            if (!canConfirm) return
+        }
+        val finalizedManual = if (slotMode == SlotMode.MANUAL) {
+            selected.sorted()
+        } else emptyList()
+
         games[currentSlot] = when (slotMode) {
             SlotMode.AUTO -> emptyList()
             SlotMode.SMART -> listOf(-1)
-            SlotMode.MANUAL -> selected.sorted()
+            SlotMode.MANUAL -> finalizedManual
         }
         vm.saveConfig(games.toList())
         if (currentSlot < 4) currentSlot++
@@ -436,7 +449,11 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     AutoSlotCard()
                 }
                 SlotMode.SMART -> {
-                    SmartSlotCard()
+                    val smartStrategies by vm.smartStrategies.collectAsState()
+                    SmartSlotCard(
+                        selectedStrategies = smartStrategies,
+                        onToggleStrategy = { type -> vm.toggleSmartStrategy(type) },
+                    )
                 }
                 SlotMode.MANUAL -> {
                     NumberGrid(selected = selected, onToggle = { n ->
@@ -448,6 +465,33 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     })
                     Spacer(Modifier.height(12.dp))
                     SelectedNumbers(selected)
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { fillRemainingRandomly = !fillRemainingRandomly }
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                    ) {
+                        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                            Checkbox(
+                                checked = fillRemainingRandomly,
+                                onCheckedChange = { fillRemainingRandomly = it },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = MaterialTheme.colorScheme.primary,
+                                ),
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            stringResource(R.string.manualFillRemainingRandom),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (fillRemainingRandomly) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (fillRemainingRandomly) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -468,9 +512,14 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     shape = CircleShape,
                     contentPadding = PaddingValues(horizontal = 8.dp) // 버튼 좌우 여백 축소
                 ) { Text(stringResource(R.string.buttonReset), fontWeight = FontWeight.SemiBold) }
+                val isManualConfirmable = if (fillRemainingRandomly) {
+                    selected.isNotEmpty()
+                } else {
+                    selected.size == 6
+                }
                 CtaButton(
                     onClick = { confirmSlot() },
-                    enabled = slotMode != SlotMode.MANUAL || selected.size == 6,
+                    enabled = slotMode != SlotMode.MANUAL || isManualConfirmable,
                     modifier = Modifier.weight(2f).graphicsLayer {
                         scaleX = confirmPop.value
                         scaleY = confirmPop.value
@@ -793,8 +842,11 @@ private fun AutoSlotCard() {
 }
 
 @Composable
-private fun SmartSlotCard() {
-    SectionCard(contentPadding = PaddingValues(32.dp)) {
+private fun SmartSlotCard(
+    selectedStrategies: Set<StrategyType>,
+    onToggleStrategy: (StrategyType) -> Unit,
+) {
+    SectionCard(contentPadding = PaddingValues(horizontal = 24.dp, vertical = 24.dp)) {
         Column(
             Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -812,12 +864,72 @@ private fun SmartSlotCard() {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                stringResource(R.string.smartSlotSubtitle),
+                text = when (selectedStrategies.size) {
+                    3 -> stringResource(R.string.smartSlotSubtitleAll)
+                    1 -> stringResource(R.string.smartSlotSubtitleSingle)
+                    else -> stringResource(R.string.smartSlotSubtitleMulti, selectedStrategies.size)
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(14.dp))
+
+            // 체크박스 3가지: [ ]균형  [ ]다출  [ ]미출
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                SmartStrategyCheckboxItem(
+                    label = stringResource(R.string.smartStrategyCheckBalanced),
+                    checked = StrategyType.BALANCED in selectedStrategies,
+                    onToggle = { onToggleStrategy(StrategyType.BALANCED) },
+                )
+                SmartStrategyCheckboxItem(
+                    label = stringResource(R.string.smartStrategyCheckHot),
+                    checked = StrategyType.HOT_FOCUS in selectedStrategies,
+                    onToggle = { onToggleStrategy(StrategyType.HOT_FOCUS) },
+                )
+                SmartStrategyCheckboxItem(
+                    label = stringResource(R.string.smartStrategyCheckCold),
+                    checked = StrategyType.COLD_FOCUS in selectedStrategies,
+                    onToggle = { onToggleStrategy(StrategyType.COLD_FOCUS) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SmartStrategyCheckboxItem(
+    label: String,
+    checked: Boolean,
+    onToggle: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { onToggle() }
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+    ) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = { onToggle() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = MaterialTheme.colorScheme.primary,
+                ),
             )
         }
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (checked) FontWeight.Bold else FontWeight.Normal,
+            color = if (checked) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -839,6 +951,7 @@ private fun GameSummary(
                 else stringResource(R.string.gameSummaryNotSet)
                 g.isEmpty() -> stringResource(R.string.gameSummaryAuto)
                 g.size == 1 && g[0] == -1 -> stringResource(R.string.gameSummarySmart)
+                g.size in 1..5 -> stringResource(R.string.gameSummarySemiAuto, g.joinToString(", "))
                 else -> g.joinToString(", ")
             }
             Row(
@@ -1196,7 +1309,87 @@ private fun SmartGeneratorDialog(
                             .height(46.dp),
                     )
                 }
+                Spacer(Modifier.height(12.dp))
+
+                // 번호 추천 표시
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    generatedNumbers.forEach { n ->
+                        LottoBall(n = n, size = 36.dp, modifier = Modifier.padding(horizontal = 2.dp))
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
+
+                // 통계 요약 칩 (검증 결과 표시)
+                val oddCount = generatedNumbers.count { it % 2 != 0 }
+                val evenCount = 6 - oddCount
+                val lowCount = generatedNumbers.count { it in 1..22 }
+                val highCount = 6 - lowCount
+                val sum = generatedNumbers.sum()
+                val maxConsecutive = com.umicorp.autolotto.generator.SmartNumberGenerator.getMaxConsecutive(generatedNumbers)
+                val maxSameLastDigit = com.umicorp.autolotto.generator.SmartNumberGenerator.getMaxSameLastDigit(generatedNumbers)
+
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    stringResource(R.string.smartAnalysisOddEven, oddCount, evenCount),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    stringResource(R.string.smartAnalysisHighLow, lowCount, highCount),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    stringResource(R.string.smartAnalysisSum, sum),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    if (maxConsecutive > 1) {
+                                        stringResource(R.string.smartAnalysisConsecutive, maxConsecutive)
+                                    } else {
+                                        stringResource(R.string.smartAnalysisConsecutiveNone)
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    stringResource(R.string.smartAnalysisLastDigit, maxSameLastDigit),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
 
                 // 💡 추천 근거 및 통계 필터링 조건 가이드 카드 (접었다 펼치기 가능)
                 Surface(
@@ -1261,84 +1454,6 @@ private fun SmartGeneratorDialog(
                             }
                         }
                     }
-                }
-                Spacer(Modifier.height(14.dp))
-
-                // 번호 추천 표시
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                ) {
-                    generatedNumbers.forEach { n ->
-                        LottoBall(n = n, size = 36.dp, modifier = Modifier.padding(horizontal = 2.dp))
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // 통계 요약 칩 (검증 결과 표시)
-                val oddCount = generatedNumbers.count { it % 2 != 0 }
-                val evenCount = 6 - oddCount
-                val lowCount = generatedNumbers.count { it in 1..22 }
-                val highCount = 6 - lowCount
-                val sum = generatedNumbers.sum()
-                val maxConsecutive = com.umicorp.autolotto.generator.SmartNumberGenerator.getMaxConsecutive(generatedNumbers)
-                val maxSameLastDigit = com.umicorp.autolotto.generator.SmartNumberGenerator.getMaxSameLastDigit(generatedNumbers)
-
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                stringResource(R.string.smartAnalysisOddEven, oddCount, evenCount),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                    )
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                stringResource(R.string.smartAnalysisHighLow, lowCount, highCount),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                    )
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                stringResource(R.string.smartAnalysisSum, sum),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                    )
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                if (maxConsecutive > 1) {
-                                    stringResource(R.string.smartAnalysisConsecutive, maxConsecutive)
-                                } else {
-                                    stringResource(R.string.smartAnalysisConsecutiveNone)
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                    )
-                    AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                stringResource(R.string.smartAnalysisLastDigit, maxSameLastDigit),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        },
-                    )
                 }
                 Spacer(Modifier.height(12.dp))
 

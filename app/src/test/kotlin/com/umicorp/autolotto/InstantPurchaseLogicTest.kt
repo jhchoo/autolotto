@@ -56,6 +56,16 @@ class InstantPurchaseLogicTest {
     }
 
     @Test
+    fun `splitSlots - 반자동(1~5개) 슬롯도 유효 수동 게임으로 집계`() {
+        val slots = listOf(listOf(1, 2, 3), null, emptyList(), null, null)
+        val (auto, manual) = splitSlots(slots)
+        assertEquals(1, auto)
+        assertEquals(1, manual.size)
+        assertEquals(listOf(1, 2, 3), manual[0])
+        assertEquals(TapSlotsOutcome.PROCEED, tapSlotsOutcome(slots))
+    }
+
+    @Test
     fun `판매시간 게이트 - 토요일은 19시대까지, 20시부터 정지`() {
         assertTrue(SettingsViewModel.isValidPurchaseTime(day = 6, hour = 19))
         assertFalse(SettingsViewModel.isValidPurchaseTime(day = 6, hour = 20))

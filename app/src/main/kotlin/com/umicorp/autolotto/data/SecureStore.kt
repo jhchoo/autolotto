@@ -32,6 +32,9 @@ object SecureKeys {
     /** 로그인 팝업 편의용 마지막 로그인 ID */
     const val LAST_USER_ID = "last_user_id"
 
+    /** 스마트 슬롯 전략 선택 목록 (쉼표 구분: BALANCED,HOT_FOCUS,COLD_FOCUS) */
+    const val SMART_STRATEGIES = "smart_strategies"
+
     /** 마이그레이션·일괄 처리용 전체 키 목록. */
     val ALL = listOf(
         USER_ID, PASSWORD, AUTO_ENABLED, AUTO_GAMES, MANUAL_NUMBERS,
@@ -240,6 +243,30 @@ class SecureStore(context: Context) {
     fun setLastUserId(userId: String) = putString(SecureKeys.LAST_USER_ID, userId)
 
     fun getLastUserId(): String? = read(SecureKeys.LAST_USER_ID)
+
+    // === 스마트 슬롯 전략 설정 ===
+
+    fun getSmartStrategies(): Set<com.umicorp.autolotto.generator.StrategyType> {
+        val raw = read(SecureKeys.SMART_STRATEGIES) ?: return setOf(
+            com.umicorp.autolotto.generator.StrategyType.BALANCED,
+            com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS,
+            com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS,
+        )
+        val parsed = raw.split(",").mapNotNull { name ->
+            runCatching { com.umicorp.autolotto.generator.StrategyType.valueOf(name.trim()) }.getOrNull()
+        }.toSet()
+        return if (parsed.isNotEmpty()) parsed else setOf(
+            com.umicorp.autolotto.generator.StrategyType.BALANCED,
+            com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS,
+            com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS,
+        )
+    }
+
+    fun setSmartStrategies(strategies: Set<com.umicorp.autolotto.generator.StrategyType>) {
+        if (strategies.isEmpty()) return
+        val str = strategies.joinToString(",") { it.name }
+        putString(SecureKeys.SMART_STRATEGIES, str)
+    }
 
     // === 전체 초기화 ===
 

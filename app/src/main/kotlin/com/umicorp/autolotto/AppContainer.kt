@@ -108,6 +108,16 @@ class AppContainer(context: Context) {
     private val _lastPurchasedRound = MutableStateFlow(0)
     val lastPurchasedRound: StateFlow<Int> = _lastPurchasedRound.asStateFlow()
 
+    /** 스마트 슬롯 전략 선택 목록 (기본: 균형, 다출, 미출 3개 모두 활성) */
+    private val _smartStrategies = MutableStateFlow(store.getSmartStrategies())
+    val smartStrategies: StateFlow<Set<com.umicorp.autolotto.generator.StrategyType>> = _smartStrategies.asStateFlow()
+
+    fun setSmartStrategies(strategies: Set<com.umicorp.autolotto.generator.StrategyType>) {
+        if (strategies.isEmpty()) return
+        _smartStrategies.value = strategies
+        store.setSmartStrategies(strategies)
+    }
+
 
     // === 프로세스 스코프 하이드레이션 (crosscheck: rememberSaveable 복원으로 스플래시가
     //     스킵돼도 AppRoot가 재호출 — 성공 1회, 실패는 재시도 가능해야 한다) ===
@@ -154,6 +164,7 @@ class AppContainer(context: Context) {
         _loggedInUserId.value = userId
         _lastUserId.value = lastUsedId
         _lastPurchasedRound.value = lastRound
+        _smartStrategies.value = store.getSmartStrategies()
         // 앱 실행마다 알람 재무장(자동구매 활성 시). 업데이트·강제종료·OEM 정리로 소실된 알람 복구 — 멱등.
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
         runCatching { scheduler.rescheduleAll() }
@@ -602,11 +613,20 @@ fun resolveSlotsForPurchase(
     var autoCount = 0
     val manualNumbers = mutableListOf<List<Int>>()
 
-    val strategies = listOf(
-        com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
-        com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS,
-        com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS,
-    )
+    val activeTypes = SecureStore(context).getSmartStrategies()
+    val strategies = activeTypes.map { type ->
+        when (type) {
+            com.umicorp.autolotto.generator.StrategyType.BALANCED -> com.umicorp.autolotto.generator.LottoStrategy.BALANCED
+            com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS -> com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS
+            com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS -> com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS
+        }
+    }.ifEmpty {
+        listOf(
+            com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
+            com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS,
+            com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS,
+        )
+    }
 
     val history = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(context)
 
@@ -620,6 +640,12 @@ fun resolveSlotsForPurchase(
                 val analysis = com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, 100)
                 val generated = com.umicorp.autolotto.generator.SmartNumberGenerator.generateNumbers(randomStrategy, analysis)
                 manualNumbers.add(generated)
+            }
+            s.size in 1..5 -> {
+                // 수동 반자동: 지정된 번호 유지 + 나머지 번호 구매 시점 랜덤 결정
+                val needed = 6 - s.size
+                val randomRemaining = (1..45).filter { it !in s }.shuffled().take(needed)
+                manualNumbers.add((s + randomRemaining).sorted())
             }
             else -> manualNumbers.add(s)
         }

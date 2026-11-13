@@ -153,6 +153,18 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
     // === 스마트 번호 추천 ===
 
     val isHistoryLoading: StateFlow<Boolean> = container.isHistoryLoading
+    val smartStrategies: StateFlow<Set<com.umicorp.autolotto.generator.StrategyType>> = container.smartStrategies
+
+    /** 스마트 전략 체크 토글 (최소 1개 이상 유지 - 0개 방지) */
+    fun toggleSmartStrategy(type: com.umicorp.autolotto.generator.StrategyType) {
+        val current = smartStrategies.value
+        val next = if (type in current) {
+            if (current.size > 1) current - type else current
+        } else {
+            current + type
+        }
+        container.setSmartStrategies(next)
+    }
 
     /** 당첨 데이터가 없으면 최초 자동 수집 수행 */
     suspend fun ensureWinningHistoryLoaded(context: android.content.Context) {
