@@ -14,7 +14,7 @@ import org.junit.Test
 import java.security.KeyPairGenerator
 import java.security.interfaces.RSAPublicKey
 
-class NetworkSpeedAndLoginTest {
+class LoginMaintenanceTest {
 
     private lateinit var server: MockWebServer
     private lateinit var modulusHex: String
@@ -33,7 +33,6 @@ class NetworkSpeedAndLoginTest {
     @After
     fun tearDown() {
         server.shutdown()
-        NetworkSpeedChecker.overrideSpeed = null
     }
 
     private fun authFor(dispatcher: Dispatcher): AuthService {
@@ -45,14 +44,6 @@ class NetworkSpeedAndLoginTest {
 
     private fun ok(body: String) = MockResponse().setResponseCode(200).setBody(body)
     private fun rsaOk() = ok("{\"data\":{\"rsaModulus\":\"$modulusHex\",\"publicExponent\":\"$exponentHex\"}}")
-
-    @Test
-    fun `network speed timeouts match specifications`() {
-        // 저속: 30초, 중속: 10초, 고속: 5초
-        assertEquals(30_000L, NetworkSpeed.SLOW.timeoutMillis)
-        assertEquals(10_000L, NetworkSpeed.MEDIUM.timeoutMillis)
-        assertEquals(5_000L, NetworkSpeed.FAST.timeoutMillis)
-    }
 
     @Test
     fun `maintenance text detection works accurately`() {

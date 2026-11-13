@@ -187,7 +187,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
             }
             LoginState.InvalidCredentials -> "❌ " + context.resources.getString(R.string.errorInvalidCredentials)
             is LoginState.Maintenance -> "🚧 " + (state.reason ?: context.resources.getString(R.string.maintenanceBannerNotice))
-            is LoginState.Timeout -> "⏱️ 네트워크 지연으로 로그인 시간이 초과되었습니다 (${state.seconds}초). 다시 시도해주세요."
+            is LoginState.Timeout -> "⏱️ " + context.resources.getString(R.string.snackbarLoginTimeout, state.seconds)
             is LoginState.Error -> "❌ " + (state.message ?: context.resources.getString(R.string.snackbarLoginFailed))
             else -> null
         }

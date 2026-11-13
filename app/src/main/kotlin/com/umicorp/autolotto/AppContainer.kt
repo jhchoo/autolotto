@@ -205,12 +205,11 @@ class AppContainer(context: Context) {
         private set
 
     /**
-     * 로그인 실행 (대기시간 무조건 30초 고정).
+     * 로그인 실행 (대기시간 30초 확정).
      * 타임아웃 발생 시 서버 점검 상태인지 확인하여 점검 여부 또는 타임아웃 예외를 결정한다.
      */
     private suspend fun executeLoginWithTimeout(id: String, pw: String) {
         val timeoutMillis = 30_000L
-        session.updateTimeout(timeoutMillis)
 
         try {
             withTimeout(timeoutMillis) {
