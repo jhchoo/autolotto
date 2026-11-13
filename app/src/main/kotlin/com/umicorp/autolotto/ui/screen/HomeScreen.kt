@@ -57,7 +57,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,8 +79,6 @@ import com.umicorp.autolotto.ui.util.formatNumber
 import com.umicorp.autolotto.ui.util.formatPurchaseSchedule
 import com.umicorp.autolotto.ui.util.launchActivitySafely
 import com.umicorp.autolotto.ui.vm.HomeViewModel
-import com.umicorp.autolotto.ui.vm.NumberViewModel
-import com.umicorp.autolotto.ui.vm.NumberViewModel.InstantState
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.time.DayOfWeek
@@ -105,7 +102,6 @@ fun HomeScreen(
     val hydrationFailed by vm.hydrationFailed.collectAsState()
     val balance by vm.balance.collectAsState()
     val autoEnabled by vm.autoEnabled.collectAsState()
-    val autoGames by vm.autoGames.collectAsState()
     val day by vm.autoPurchaseDay.collectAsState()
     val hour by vm.autoPurchaseHour.collectAsState()
     val minute by vm.autoPurchaseMinute.collectAsState()
@@ -113,22 +109,8 @@ fun HomeScreen(
     val threshold by vm.balanceAlertThreshold.collectAsState()
     val winning by vm.winning.collectAsState()
     val loadingNumbers by vm.loadingNumbers.collectAsState()
-    val lastRound by vm.lastPurchasedRound.collectAsState()
 
-    val numVm: NumberViewModel = appViewModel()
-    val instantState by numVm.instantState.collectAsState()
     val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-    LaunchedEffect(instantState) {
-        if (instantState is InstantState.NeedsSetup) {
-            val msg = context.resources.getString(R.string.instantNeedsSetup)
-            scope.launch { snackbar.showSnackbar(msg) }
-            numVm.dismissInstant()
-        }
-    }
-    InstantPurchaseDialogs(instantState, numVm)
 
     Scaffold(
         modifier = modifier,
@@ -230,16 +212,6 @@ fun HomeScreen(
                 BalanceCard(isLoggedIn, isLoggingIn, balance, alertEnabled, threshold)
                 Spacer(Modifier.height(12.dp))
                 AutoStatusCard(autoEnabled, day, hour, minute, onNavigateToSettings)
-                Spacer(Modifier.height(12.dp))
-                InstantPurchaseCta(
-                    isLoggedIn = isLoggedIn,
-                    serverHealth = if (isLoggingIn) com.umicorp.autolotto.dhlottery.ServerHealth.Online else serverHealth,
-                    purchasedThisRound = lastRound >= vm.currentRound,
-                    saleOpen = numVm.isSaleOpenNow(),
-                    autoGames = autoGames,
-                    manualGames = 0,
-                    onTap = { numVm.onInstantTap() },
-                )
             }
         }
     }

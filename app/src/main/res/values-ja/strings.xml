@@ -40,7 +40,8 @@
     <string name="smartSlotTitle">スマート番号モード</string>
     <string name="smartSlotSubtitle">購入するたびに3つのスマート戦略(バランス/頻出/未出現)の1つがランダム選択され自動生成されます。</string>
     <string name="buttonAllAuto">すべて自動</string>
-    <string name="buttonReset">リセット</string>
+    <string name="buttonAllReset">すべて初期化</string>
+    <string name="buttonReset">初期化</string>
     <string name="buttonConfirmGame">ゲーム%1$s 確定 ✓</string>
     <string name="selectionCount">選択: %1$d/6</string>
     <string name="gameSummaryTitle">📋 ゲーム設定</string>

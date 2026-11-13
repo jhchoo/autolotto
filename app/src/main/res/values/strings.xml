@@ -45,7 +45,8 @@
     <string name="smartSlotTitle">스마트 번호 모드</string>
     <string name="smartSlotSubtitle">매번 스마트 전략 무작위 선택됩니다.</string>
     <string name="buttonAllAuto">전부 자동</string>
-    <string name="buttonReset">전부 초기화</string>
+    <string name="buttonAllReset">전부 초기화</string>
+    <string name="buttonReset">초기화</string>
     <string name="buttonConfirmGame">게임 %1$s 확정 ✓</string>
     <string name="selectionCount">선택: %1$d/6</string>
     <string name="gameSummaryTitle">📋 게임 설정</string>
@@ -213,7 +214,7 @@
     <string name="smartGenerateNew">🎲 다시 생성</string>
     <string name="smartHistoryRange">📊 제 %1$d회 ~ 제 %2$d회 분석 기준</string>
     <string name="smartTopFrequentTitle">최다 출현 번호 TOP 5</string>
-    <string name="sectionWinningHistory">🏆 당첨 번호 조회</string>
+    <string name="sectionWinningHistory">🏆 과거 이력 조회</string>
     <string name="winningHistoryTitle">당첨 번호</string>
     <string name="winningHistoryMax100Notice">최대 100개까지 한꺼번에 가능합니다</string>
     <string name="winningHistoryLoading">당첨 번호 수집 중…</string>

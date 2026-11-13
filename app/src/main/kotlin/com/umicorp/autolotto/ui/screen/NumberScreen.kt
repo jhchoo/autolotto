@@ -112,7 +112,7 @@ import com.umicorp.autolotto.ui.vm.NumberViewModel.InstantState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class SlotMode { MANUAL, SMART, AUTO }
+enum class SlotMode { AUTO, SMART, MANUAL }
 
 /**
  * 자동 구매 번호 설정 (원본 number_screen.dart 1:1) — Lucky Gloss 리디자인.
@@ -149,7 +149,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
     // 확정 버튼 팝(눌림 0.92 → 오버슛 복귀) — 확정이 접수됐다는 즉각 피드백 (사용자 피드백).
     val confirmPop = remember { Animatable(1f) }
 
-    var slotMode by remember { mutableStateOf(SlotMode.MANUAL) }
+    var slotMode by remember { mutableStateOf(SlotMode.AUTO) }
     var selected by remember { mutableStateOf(emptySet<Int>()) }
 
     fun syncEditorToSlot() {
@@ -157,7 +157,8 @@ fun NumberScreen(modifier: Modifier = Modifier) {
         slotMode = when {
             current?.isEmpty() == true -> SlotMode.AUTO
             current?.size == 1 && current[0] == -1 -> SlotMode.SMART
-            else -> SlotMode.MANUAL
+            current != null -> SlotMode.MANUAL
+            else -> SlotMode.AUTO
         }
         selected = if (slotMode == SlotMode.MANUAL) current?.toSet() ?: emptySet() else emptySet()
     }
@@ -387,8 +388,9 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     TextButton(
                         onClick = {
                             for (i in 0 until 5) games[i] = null
+                            currentSlot = 0
                             selected = emptySet()
-                            slotMode = SlotMode.MANUAL
+                            slotMode = SlotMode.AUTO
                             vm.saveConfig(games.toList())
                             syncEditorToSlot()
                         },
@@ -396,7 +398,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                         Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            "초기화",
+                            stringResource(R.string.buttonAllReset),
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -415,7 +417,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(4.dp))
 
-            // 수동/스마트/자동 토글 — bouncy 스프링 슬라이드 인디케이터.
+            // 자동/스마트/수동 토글 — bouncy 스프링 슬라이드 인디케이터.
             ModeToggle(
                 mode = slotMode,
                 onChange = { mode -> slotMode = mode },
@@ -423,6 +425,12 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             Spacer(Modifier.height(16.dp))
 
             when (slotMode) {
+                SlotMode.AUTO -> {
+                    AutoSlotCard()
+                }
+                SlotMode.SMART -> {
+                    SmartSlotCard()
+                }
                 SlotMode.MANUAL -> {
                     NumberGrid(selected = selected, onToggle = { n ->
                         selected = when {
@@ -433,12 +441,6 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     })
                     Spacer(Modifier.height(12.dp))
                     SelectedNumbers(selected)
-                }
-                SlotMode.SMART -> {
-                    SmartSlotCard()
-                }
-                SlotMode.AUTO -> {
-                    AutoSlotCard()
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -452,7 +454,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     onClick = {
                         selected = emptySet()
                         games[currentSlot] = null
-                        slotMode = SlotMode.MANUAL
+                        slotMode = SlotMode.AUTO
                         vm.saveConfig(games.toList())
                     },
                     modifier = Modifier.weight(1f).height(56.dp),
@@ -627,7 +629,7 @@ private fun SlotTabs(
     }
 }
 
-/** 수동/스마트/자동 세그먼트 토글 — 민트 인디케이터가 bouncy 스프링으로 슬라이드. */
+/** 자동/스마트/수동 세그먼트 토글 — 민트 인디케이터가 bouncy 스프링으로 슬라이드. */
 @Composable
 private fun ModeToggle(mode: SlotMode, onChange: (SlotMode) -> Unit) {
     val scheme = MaterialTheme.colorScheme
@@ -642,9 +644,9 @@ private fun ModeToggle(mode: SlotMode, onChange: (SlotMode) -> Unit) {
         val third = maxWidth / 3
         val indicatorX by animateDpAsState(
             targetValue = when (mode) {
-                SlotMode.MANUAL -> 0.dp
+                SlotMode.AUTO -> 0.dp
                 SlotMode.SMART -> third
-                SlotMode.AUTO -> third * 2
+                SlotMode.MANUAL -> third * 2
             },
             animationSpec = MotionSpecs.bouncy(),
             label = "modeIndicator",
@@ -665,9 +667,9 @@ private fun ModeToggle(mode: SlotMode, onChange: (SlotMode) -> Unit) {
         )
         Row(Modifier.fillMaxSize()) {
             ModeLabel(
-                text = stringResource(R.string.modeManual),
-                active = mode == SlotMode.MANUAL,
-                onClick = { onChange(SlotMode.MANUAL) },
+                text = stringResource(R.string.modeAuto),
+                active = mode == SlotMode.AUTO,
+                onClick = { onChange(SlotMode.AUTO) },
                 modifier = Modifier.weight(1f),
             )
             ModeLabel(
@@ -677,9 +679,9 @@ private fun ModeToggle(mode: SlotMode, onChange: (SlotMode) -> Unit) {
                 modifier = Modifier.weight(1f),
             )
             ModeLabel(
-                text = stringResource(R.string.modeAuto),
-                active = mode == SlotMode.AUTO,
-                onClick = { onChange(SlotMode.AUTO) },
+                text = stringResource(R.string.modeManual),
+                active = mode == SlotMode.MANUAL,
+                onClick = { onChange(SlotMode.MANUAL) },
                 modifier = Modifier.weight(1f),
             )
         }

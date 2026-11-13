@@ -40,6 +40,7 @@
     <string name="smartSlotTitle">Smart Numbers Mode</string>
     <string name="smartSlotSubtitle">Generates numbers dynamically on each purchase using 1 of 3 smart strategies (Balanced/Hot/Cold).</string>
     <string name="buttonAllAuto">All Auto</string>
+    <string name="buttonAllReset">Reset All</string>
     <string name="buttonReset">Reset</string>
     <string name="buttonConfirmGame">Confirm Game %1$s ✓</string>
     <string name="selectionCount">Selected: %1$d/6</string>
