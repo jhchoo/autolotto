@@ -102,6 +102,7 @@ fun HomeScreen(
     val hydrationFailed by vm.hydrationFailed.collectAsState()
     val balance by vm.balance.collectAsState()
     val autoEnabled by vm.autoEnabled.collectAsState()
+    val autoGames by vm.autoGames.collectAsState()
     val day by vm.autoPurchaseDay.collectAsState()
     val hour by vm.autoPurchaseHour.collectAsState()
     val minute by vm.autoPurchaseMinute.collectAsState()
@@ -211,7 +212,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(24.dp))
                 BalanceCard(isLoggedIn, isLoggingIn, balance, alertEnabled, threshold)
                 Spacer(Modifier.height(12.dp))
-                AutoStatusCard(autoEnabled, day, hour, minute, onNavigateToSettings)
+                AutoStatusCard(autoEnabled, autoGames, day, hour, minute, onNavigateToSettings)
             }
         }
     }
@@ -443,6 +444,7 @@ private fun BalanceCard(
 @Composable
 private fun AutoStatusCard(
     autoEnabled: Boolean,
+    autoGames: Int,
     day: Int,
     hour: Int,
     minute: Int,
@@ -466,8 +468,13 @@ private fun AutoStatusCard(
             Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    if (autoEnabled) stringResource(R.string.autoPurchaseEnabled)
-                    else stringResource(R.string.autoPurchaseDisabled),
+                    if (autoEnabled) {
+                        if (autoGames > 0) {
+                            stringResource(R.string.autoPurchaseEnabledWithCount, autoGames)
+                        } else {
+                            stringResource(R.string.autoPurchaseEnabled)
+                        }
+                    } else stringResource(R.string.autoPurchaseDisabled),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )

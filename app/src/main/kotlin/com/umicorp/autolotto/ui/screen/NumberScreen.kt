@@ -260,6 +260,8 @@ fun NumberScreen(modifier: Modifier = Modifier) {
         )
     }
 
+    val scrollState = rememberScrollState()
+
     Box(modifier) {
     Scaffold(
         modifier = Modifier.fillMaxSize().creamPageBackground(),
@@ -324,7 +326,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(inner)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(20.dp),
         ) {
             if (!autoEnabled) {
@@ -440,7 +442,13 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             // 자동/스마트/수동 토글 — bouncy 스프링 슬라이드 인디케이터.
             ModeToggle(
                 mode = slotMode,
-                onChange = { mode -> slotMode = mode },
+                onChange = { mode ->
+                    if (mode == SlotMode.SMART && games[currentSlot] == null) {
+                        // 게임확정한 적 없는 곳에서 스마트를 누르면 3개 선택 기본으로 초기화
+                        vm.resetSlotSmartStrategies(currentSlot)
+                    }
+                    slotMode = mode
+                },
             )
             Spacer(Modifier.height(16.dp))
 
@@ -449,10 +457,15 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     AutoSlotCard()
                 }
                 SlotMode.SMART -> {
-                    val smartStrategies by vm.smartStrategies.collectAsState()
+                    val slotStrategiesMap by vm.slotSmartStrategies.collectAsState()
+                    val currentSlotStrategies = slotStrategiesMap[currentSlot] ?: setOf(
+                        StrategyType.BALANCED,
+                        StrategyType.HOT_FOCUS,
+                        StrategyType.COLD_FOCUS,
+                    )
                     SmartSlotCard(
-                        selectedStrategies = smartStrategies,
-                        onToggleStrategy = { type -> vm.toggleSmartStrategy(type) },
+                        selectedStrategies = currentSlotStrategies,
+                        onToggleStrategy = { type -> vm.toggleSlotSmartStrategy(currentSlot, type) },
                     )
                 }
                 SlotMode.MANUAL -> {
@@ -506,6 +519,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                         selected = emptySet()
                         games[currentSlot] = null
                         slotMode = SlotMode.AUTO
+                        vm.resetSlotSmartStrategies(currentSlot)
                         vm.saveConfig(games.toList())
                     },
                     modifier = Modifier.weight(1f).height(56.dp),
@@ -534,11 +548,23 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(24.dp))
 
+            val slotStrategiesMap by vm.slotSmartStrategies.collectAsState()
             GameSummary(
                 games = games,
+                slotSmartStrategies = slotStrategiesMap,
                 currentSlot = currentSlot,
+                onSelectSlot = { i ->
+                    if (i != currentSlot) {
+                        currentSlot = i
+                        syncEditorToSlot()
+                    }
+                    scope.launch {
+                        scrollState.animateScrollTo(0)
+                    }
+                },
                 onRemove = { i ->
                     games[i] = null
+                    vm.resetSlotSmartStrategies(i)
                     vm.saveConfig(games.toList())
                     // 현재 슬롯을 지우면 편집기(토글·그리드)도 함께 비운다(P1).
                     if (i == currentSlot) syncEditorToSlot()
@@ -936,7 +962,9 @@ private fun SmartStrategyCheckboxItem(
 @Composable
 private fun GameSummary(
     games: List<List<Int>?>,
+    slotSmartStrategies: Map<Int, Set<StrategyType>> = emptyMap(),
     currentSlot: Int,
+    onSelectSlot: (Int) -> Unit = {},
     onRemove: (Int) -> Unit,
 ) {
     SectionCard {
@@ -950,14 +978,34 @@ private fun GameSummary(
                 g == null -> if (selecting) stringResource(R.string.gameSummarySelecting)
                 else stringResource(R.string.gameSummaryNotSet)
                 g.isEmpty() -> stringResource(R.string.gameSummaryAuto)
-                g.size == 1 && g[0] == -1 -> stringResource(R.string.gameSummarySmart)
+                g.size == 1 && g[0] == -1 -> {
+                    val strategies = slotSmartStrategies[i] ?: setOf(
+                        StrategyType.BALANCED,
+                        StrategyType.HOT_FOCUS,
+                        StrategyType.COLD_FOCUS,
+                    )
+                    if (strategies.size == 3) {
+                        stringResource(R.string.gameSummarySmart)
+                    } else {
+                        val names = strategies.map { type ->
+                            when (type) {
+                                StrategyType.BALANCED -> stringResource(R.string.smartStrategyCheckBalanced)
+                                StrategyType.HOT_FOCUS -> stringResource(R.string.smartStrategyCheckHot)
+                                StrategyType.COLD_FOCUS -> stringResource(R.string.smartStrategyCheckCold)
+                            }
+                        }.joinToString("/")
+                        stringResource(R.string.gameSummarySmartCustom, names)
+                    }
+                }
                 g.size in 1..5 -> stringResource(R.string.gameSummarySemiAuto, g.joinToString(", "))
                 else -> g.joinToString(", ")
             }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onSelectSlot(i) }
+                    .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(

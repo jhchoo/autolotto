@@ -13,6 +13,7 @@
     <string name="appTitle">AutoLotto</string>
 
     <string name="autoPurchaseEnabled">自動購入 有効</string>
+    <string name="autoPurchaseEnabledWithCount">自動購入 有効 (%1$d個 購入)</string>
     <string name="autoPurchaseDisabled">自動購入 無効</string>
     <string name="autoPurchaseSchedule">%1$sに自動購入されます</string>
     <string name="enableInSettings">設定で有効にしてください</string>
@@ -56,8 +57,9 @@
     <string name="rollingAllAuto">運試し中</string>
     <string name="gameSummaryNotSet">未設定</string>
     <string name="gameSummaryAuto">🎲 自動 (毎週ランダム)</string>
-    <string name="gameSummarySmart">✨ 스마트 (購入時毎回変更)</string>
-    <string name="gameSummarySemiAuto">%1$s (残りの数字は毎週ランダム)</string>
+    <string name="gameSummarySmart">✨ スマート (3戦略 毎週ランダム)</string>
+    <string name="gameSummarySmartCustom">✨ スマート (%1$s 毎週ランダム)</string>
+    <string name="gameSummarySemiAuto">%1$s (残りランダム)</string>
     <string name="buttonSaveDone">保存完了！</string>
     <string name="buttonSaveGames">%1$dゲーム設定を保存</string>
     <string name="buttonSaveEmpty">ゲームなしで保存</string>

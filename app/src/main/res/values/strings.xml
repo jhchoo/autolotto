@@ -17,6 +17,7 @@
 
     <!-- 홈 -->
     <string name="autoPurchaseEnabled">자동 구매 활성화</string>
+    <string name="autoPurchaseEnabledWithCount">자동 구매 활성화 (%1$d게임)</string>
     <string name="autoPurchaseDisabled">자동 구매 비활성화</string>
     <string name="autoPurchaseSchedule">%1$s에 자동 구매됩니다</string>
     <string name="enableInSettings">설정에서 활성화해주세요</string>
@@ -61,8 +62,9 @@
     <string name="rollingAllAuto">행운을 굴리는 중</string>
     <string name="gameSummaryNotSet">미설정</string>
     <string name="gameSummaryAuto">🎲 자동 (매주 랜덤)</string>
-    <string name="gameSummarySmart">✨ 스마트 (구매 시 매번 변경)</string>
-    <string name="gameSummarySemiAuto">%1$s (나머지 숫자 매주 랜덤)</string>
+    <string name="gameSummarySmart">✨ 스마트 (3전략 매주 랜덤)</string>
+    <string name="gameSummarySmartCustom">✨ 스마트 (%1$s 매주 랜덤)</string>
+    <string name="gameSummarySemiAuto">%1$s (나머지 랜덤)</string>
     <string name="buttonSaveDone">저장 완료!</string>
     <string name="buttonSaveGames">%1$d게임 설정 저장</string>
     <string name="buttonSaveEmpty">게임 없이 저장</string>

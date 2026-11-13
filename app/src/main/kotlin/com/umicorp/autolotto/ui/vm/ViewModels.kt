@@ -153,17 +153,33 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
     // === 스마트 번호 추천 ===
 
     val isHistoryLoading: StateFlow<Boolean> = container.isHistoryLoading
-    val smartStrategies: StateFlow<Set<com.umicorp.autolotto.generator.StrategyType>> = container.smartStrategies
+    val slotSmartStrategies: StateFlow<Map<Int, Set<com.umicorp.autolotto.generator.StrategyType>>> = container.slotSmartStrategies
 
-    /** 스마트 전략 체크 토글 (최소 1개 이상 유지 - 0개 방지) */
-    fun toggleSmartStrategy(type: com.umicorp.autolotto.generator.StrategyType) {
-        val current = smartStrategies.value
+    /** 슬롯별 스마트 전략 체크 토글 (최소 1개 이상 유지 - 0개 방지) */
+    fun toggleSlotSmartStrategy(slot: Int, type: com.umicorp.autolotto.generator.StrategyType) {
+        val current = slotSmartStrategies.value[slot] ?: setOf(
+            com.umicorp.autolotto.generator.StrategyType.BALANCED,
+            com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS,
+            com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS,
+        )
         val next = if (type in current) {
             if (current.size > 1) current - type else current
         } else {
             current + type
         }
-        container.setSmartStrategies(next)
+        container.setSlotSmartStrategies(slot, next)
+    }
+
+    /** 해당 슬롯의 스마트 전략을 기본 3개 전체 선택 상태로 초기화 */
+    fun resetSlotSmartStrategies(slot: Int) {
+        container.setSlotSmartStrategies(
+            slot,
+            setOf(
+                com.umicorp.autolotto.generator.StrategyType.BALANCED,
+                com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS,
+                com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS,
+            )
+        )
     }
 
     /** 당첨 데이터가 없으면 최초 자동 수집 수행 */

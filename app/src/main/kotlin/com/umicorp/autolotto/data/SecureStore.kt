@@ -244,10 +244,11 @@ class SecureStore(context: Context) {
 
     fun getLastUserId(): String? = read(SecureKeys.LAST_USER_ID)
 
-    // === 스마트 슬롯 전략 설정 ===
+    // === 스마트 슬롯 전략 설정 (슬롯별 0..4) ===
 
-    fun getSmartStrategies(): Set<com.umicorp.autolotto.generator.StrategyType> {
-        val raw = read(SecureKeys.SMART_STRATEGIES) ?: return setOf(
+    fun getSlotSmartStrategies(slotIndex: Int): Set<com.umicorp.autolotto.generator.StrategyType> {
+        val key = "${SecureKeys.SMART_STRATEGIES}_slot_$slotIndex"
+        val raw = read(key) ?: read(SecureKeys.SMART_STRATEGIES) ?: return setOf(
             com.umicorp.autolotto.generator.StrategyType.BALANCED,
             com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS,
             com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS,
@@ -262,8 +263,18 @@ class SecureStore(context: Context) {
         )
     }
 
+    fun setSlotSmartStrategies(slotIndex: Int, strategies: Set<com.umicorp.autolotto.generator.StrategyType>) {
+        if (strategies.isEmpty()) return
+        val key = "${SecureKeys.SMART_STRATEGIES}_slot_$slotIndex"
+        val str = strategies.joinToString(",") { it.name }
+        putString(key, str)
+    }
+
+    fun getSmartStrategies(): Set<com.umicorp.autolotto.generator.StrategyType> = getSlotSmartStrategies(0)
+
     fun setSmartStrategies(strategies: Set<com.umicorp.autolotto.generator.StrategyType>) {
         if (strategies.isEmpty()) return
+        for (i in 0 until 5) setSlotSmartStrategies(i, strategies)
         val str = strategies.joinToString(",") { it.name }
         putString(SecureKeys.SMART_STRATEGIES, str)
     }

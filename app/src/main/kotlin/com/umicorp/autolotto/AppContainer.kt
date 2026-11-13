@@ -108,14 +108,29 @@ class AppContainer(context: Context) {
     private val _lastPurchasedRound = MutableStateFlow(0)
     val lastPurchasedRound: StateFlow<Int> = _lastPurchasedRound.asStateFlow()
 
-    /** 스마트 슬롯 전략 선택 목록 (기본: 균형, 다출, 미출 3개 모두 활성) */
-    private val _smartStrategies = MutableStateFlow(store.getSmartStrategies())
-    val smartStrategies: StateFlow<Set<com.umicorp.autolotto.generator.StrategyType>> = _smartStrategies.asStateFlow()
+    /** 슬롯별(0..4) 스마트 전략 선택 목록 */
+    private val _slotSmartStrategies = MutableStateFlow<Map<Int, Set<com.umicorp.autolotto.generator.StrategyType>>>(
+        (0 until 5).associateWith { store.getSlotSmartStrategies(it) }
+    )
+    val slotSmartStrategies: StateFlow<Map<Int, Set<com.umicorp.autolotto.generator.StrategyType>>> = _slotSmartStrategies.asStateFlow()
+
+    fun getSlotSmartStrategies(slot: Int): Set<com.umicorp.autolotto.generator.StrategyType> =
+        _slotSmartStrategies.value[slot] ?: store.getSlotSmartStrategies(slot)
+
+    fun setSlotSmartStrategies(slot: Int, strategies: Set<com.umicorp.autolotto.generator.StrategyType>) {
+        if (strategies.isEmpty()) return
+        val updated = _slotSmartStrategies.value.toMutableMap()
+        updated[slot] = strategies
+        _slotSmartStrategies.value = updated
+        store.setSlotSmartStrategies(slot, strategies)
+    }
+
+    /** 호환용: 슬롯 0 기준 스마트 전략 */
+    val smartStrategies: StateFlow<Set<com.umicorp.autolotto.generator.StrategyType>> = MutableStateFlow(store.getSmartStrategies()).asStateFlow()
 
     fun setSmartStrategies(strategies: Set<com.umicorp.autolotto.generator.StrategyType>) {
         if (strategies.isEmpty()) return
-        _smartStrategies.value = strategies
-        store.setSmartStrategies(strategies)
+        for (i in 0 until 5) setSlotSmartStrategies(i, strategies)
     }
 
 
@@ -164,7 +179,7 @@ class AppContainer(context: Context) {
         _loggedInUserId.value = userId
         _lastUserId.value = lastUsedId
         _lastPurchasedRound.value = lastRound
-        _smartStrategies.value = store.getSmartStrategies()
+        _slotSmartStrategies.value = (0 until 5).associateWith { store.getSlotSmartStrategies(it) }
         // 앱 실행마다 알람 재무장(자동구매 활성 시). 업데이트·강제종료·OEM 정리로 소실된 알람 복구 — 멱등.
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
         runCatching { scheduler.rescheduleAll() }
@@ -613,28 +628,28 @@ fun resolveSlotsForPurchase(
     var autoCount = 0
     val manualNumbers = mutableListOf<List<Int>>()
 
-    val activeTypes = SecureStore(context).getSmartStrategies()
-    val strategies = activeTypes.map { type ->
-        when (type) {
-            com.umicorp.autolotto.generator.StrategyType.BALANCED -> com.umicorp.autolotto.generator.LottoStrategy.BALANCED
-            com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS -> com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS
-            com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS -> com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS
-        }
-    }.ifEmpty {
-        listOf(
-            com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
-            com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS,
-            com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS,
-        )
-    }
-
+    val store = SecureStore(context)
     val history = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(context)
 
-    for (s in slots) {
+    for ((index, s) in slots.withIndex()) {
         when {
             s == null -> continue
             s.isEmpty() -> autoCount++
             s.size == 1 && s[0] == -1 -> {
+                val slotTypes = store.getSlotSmartStrategies(index)
+                val strategies = slotTypes.map { type ->
+                    when (type) {
+                        com.umicorp.autolotto.generator.StrategyType.BALANCED -> com.umicorp.autolotto.generator.LottoStrategy.BALANCED
+                        com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS -> com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS
+                        com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS -> com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS
+                    }
+                }.ifEmpty {
+                    listOf(
+                        com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
+                        com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS,
+                        com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS,
+                    )
+                }
                 val randomStrategy = strategies.random()
                 // 스마트 추천시 최근 100회 정보만을 사용
                 val analysis = com.umicorp.autolotto.generator.LottoFrequencyAnalyzer.analyzeRecent(history, 100)
