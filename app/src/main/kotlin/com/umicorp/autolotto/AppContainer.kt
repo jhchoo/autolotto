@@ -202,25 +202,25 @@ class AppContainer(context: Context) {
         private set
 
     /**
-     * 네트워크 속도 체크에 따른 로그인 실행 (저속 30초, 중속 10초, 고속 5초).
+     * 로그인 실행 (대기시간 무조건 30초 고정).
      * 타임아웃 발생 시 서버 점검 상태인지 확인하여 점검 여부 또는 타임아웃 예외를 결정한다.
      */
     private suspend fun executeLoginWithTimeout(id: String, pw: String) {
-        val speed = com.umicorp.autolotto.dhlottery.NetworkSpeedChecker.checkSpeed(appContext)
-        session.updateTimeout(speed.timeoutMillis)
+        val timeoutMillis = 30_000L
+        session.updateTimeout(timeoutMillis)
 
         try {
-            withTimeout(speed.timeoutMillis) {
+            withTimeout(timeoutMillis) {
                 auth.login(id, pw)
             }
         } catch (e: TimeoutCancellationException) {
-            // 속도에 따른 타임아웃 발생 -> 서버가 점검 중인지 확인
+            // 30초 타임아웃 발생 -> 서버가 점검 중인지 확인
             val health = com.umicorp.autolotto.dhlottery.ServerHealthChecker.checkHealth(appContext)
             if (health is com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance) {
                 _serverHealth.value = health
                 throw DhlotteryException("MAINTENANCE:${health.reason ?: "동행복권 시스템 점검 중"}")
             }
-            throw DhlotteryException("TIMEOUT:${speed.timeoutMillis / 1000}")
+            throw DhlotteryException("TIMEOUT:${timeoutMillis / 1000}")
         } catch (e: DhlotteryException) {
             if (e.message?.startsWith("MAINTENANCE") == true) {
                 val reason = e.message?.removePrefix("MAINTENANCE:")?.takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
