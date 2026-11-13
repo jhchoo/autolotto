@@ -67,7 +67,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     init { fetchWinningNumbers() }
 
-    /** 지난/최신 회차 당첨번호 조회 및 획득 후 스크래핑 시작. 실패는 무시(원본 debugPrint 후 무시). */
+    /** 지난/최신 회차 당첨번호 조회 및 획득 후 최신화 동기화 시작. 실패는 무시(원본 debugPrint 후 무시). */
     fun fetchWinningNumbers() {
         viewModelScope.launch {
             _loadingNumbers.value = true
@@ -79,7 +79,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             }
             if (res != null) {
                 _winning.value = res
-                // 스크래핑은 홈화면의 최신회차 정보를 획득 한 뒤에 시작
+                // 홈화면의 최신회차 정보를 획득한 뒤 내부 저장소 CSV 최신화 동기화 시작
                 container.startWinningHistorySync(res.round)
             }
             _loadingNumbers.value = false

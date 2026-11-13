@@ -40,18 +40,25 @@ class ResultServiceTest {
 
     @Test
     fun `getWinningNumbers parses and sorts numbers`() = runBlocking {
+        var requestedPath: String? = null
         val body = """
             {"data":{"list":[{
               "tm1WnNo":33,"tm2WnNo":3,"tm3WnNo":20,"tm4WnNo":15,"tm5WnNo":43,"tm6WnNo":11,
               "bnsWnNo":7,"ltEpsd":1124,"ltRflYmd":"20260627",
-              "rnk1WnAmt":2000000000,"rnk2WnAmt":50000000,"rnk3WnAmt":1500000
+              "rnk1WnAmt":2000000000,"rnk2WnAmt":50000000,"rnk3WnAmt":1500000,"rnk1WnNope":15
             }]}}
         """.trimIndent()
         val result = resultFor(object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse =
-                if (request.path?.substringBefore('?') == ApiConstants.WINNING_NUMBER) ok(body) else ok("")
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.path?.substringBefore('?') == ApiConstants.WINNING_NUMBER) {
+                    requestedPath = request.path
+                    return ok(body)
+                }
+                return ok("")
+            }
         }).getWinningNumbers(1124)!!
 
+        assertEquals("${ApiConstants.WINNING_NUMBER}?srchLtEpsd=1124", requestedPath)
         assertEquals(1124, result.round)
         assertEquals(listOf(3, 11, 15, 20, 33, 43), result.numbers) // 정렬됨
         assertEquals(7, result.bonus)
@@ -59,6 +66,7 @@ class ResultServiceTest {
         assertEquals(2_000_000_000L, result.prize1st)
         assertEquals(50_000_000L, result.prize2nd)
         assertEquals(1_500_000L, result.prize3rd)
+        assertEquals(15, result.winnerCount1st)
     }
 
     @Test

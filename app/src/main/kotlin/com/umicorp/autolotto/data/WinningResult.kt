@@ -17,4 +17,5 @@ data class WinningResult(
     val prize1st: Long = 0,
     val prize2nd: Long = 0,
     val prize3rd: Long = 0,
+    val winnerCount1st: Int = 0,
 )

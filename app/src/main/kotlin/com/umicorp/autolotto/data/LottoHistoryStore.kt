@@ -10,14 +10,14 @@ import kotlinx.coroutines.withContext
 /**
  * 로또 당첨번호 영속 저장소 및 전역 메모리 캐시.
  *
- * 외부저장소(Documents/AutoLotto/winning_numbers.csv)와 로컬 SQLite DB,
+ * 앱 내부 저장소(winning_numbers.csv)와 로컬 SQLite DB,
  * 그리고 앱 전역 메모리([globalCache])를 단일 인터페이스로 통합 관리한다.
  */
 object LottoHistoryStore {
 
     /**
      * 앱 프로세스 전역 메모리 캐시 (회차 -> WinningResult)
-     * 앱 시작 시 외부 저장소 CSV 파일 또는 DB에서 로드하여 보관하며,
+     * 앱 시작 시 내부 저장소 CSV 파일 또는 DB에서 로드하여 보관하며,
      * 서비스 및 스마트번호추천에서 실시간 조회 시 사용된다.
      */
     @Volatile
@@ -32,18 +32,18 @@ object LottoHistoryStore {
         globalCache = results
     }
 
-    /** 외부 저장소 Documents/AutoLotto 에 CSV 파일이 존재하는지 여부 */
-    fun hasExternalStorageFile(context: Context): Boolean {
+    /** 내부 저장소에 CSV 파일이 존재하는지 여부 */
+    fun hasCsvFile(context: Context): Boolean {
         return LottoHistoryCsvHelper.hasCsvFile(context)
     }
 
-    /** 외부 저장소 CSV 파일에서 당첨번호 읽기 */
-    fun loadFromExternalStorage(context: Context): List<WinningResult>? {
+    /** 내부 저장소 CSV 파일에서 당첨번호 읽기 */
+    fun loadFromCsv(context: Context): List<WinningResult>? {
         return LottoHistoryCsvHelper.loadResults(context)
     }
 
-    /** 외부 저장소 CSV 파일로 당첨번호 저장 */
-    fun saveToExternalStorage(context: Context, results: Collection<WinningResult>): Boolean {
+    /** 내부 저장소 CSV 파일로 당첨번호 저장 */
+    fun saveToCsv(context: Context, results: Collection<WinningResult>): Boolean {
         return LottoHistoryCsvHelper.saveResults(context, results)
     }
 
@@ -145,7 +145,7 @@ object LottoHistoryStore {
     /** 데이터 존재 여부 */
     fun hasData(context: Context): Boolean {
         if (globalCache.isNotEmpty()) return true
-        if (hasExternalStorageFile(context)) return true
+        if (hasCsvFile(context)) return true
         val db = LottoDatabase(context)
         return db.hasData()
     }
@@ -170,14 +170,14 @@ object LottoHistoryStore {
         }
         globalCache = updated
 
-        // 3. 외부저장소 Documents/AutoLotto/winning_numbers.csv 로 저장
-        saveToExternalStorage(context, updated.values)
+        // 3. 앱 내부 저장소 winning_numbers.csv 로 저장
+        saveToCsv(context, updated.values)
     }
 
     /**
      * 초기 데이터 수집/로드:
-     * 1. 외부저장소 CSV 파일이 있으면 읽어서 글로벌 변수와 DB에 로드
-     * 2. 파일도 없고 DB도 비어있으면 Lottotapa(1회~최신) 스크래핑 -> 실패 시 동행복권 API 폴백
+     * 1. 앱 내부 저장소 CSV 파일(없으면 에셋에서 복사)을 읽어서 글로벌 변수와 DB에 로드
+     * 2. 최신 회차까지 누락된 회차가 있으면 동행복권 API로 수집하여 내부 저장소 CSV에 갱신
      */
     suspend fun ensureInitialHistoryLoaded(
         context: Context,
@@ -187,37 +187,28 @@ object LottoHistoryStore {
         // 이미 글로벌 캐시에 데이터가 있으면 완료
         if (globalCache.isNotEmpty()) return@withContext
 
-        // 외부 저장소 CSV 파일이 있는지 확인하여 로드
-        if (hasExternalStorageFile(context)) {
-            val fromCsv = loadFromExternalStorage(context)
-            if (!fromCsv.isNullOrEmpty()) {
-                saveWinningResults(context, fromCsv)
-                return@withContext
+        // 내부 저장소(또는 에셋 복사) CSV 파일에서 로드
+        val fromCsv = loadFromCsv(context)
+        if (!fromCsv.isNullOrEmpty()) {
+            saveWinningResults(context, fromCsv)
+        } else {
+            // DB에 데이터가 있는지 확인하여 로드
+            val db = LottoDatabase(context)
+            if (db.hasData()) {
+                val fromDb = db.getAllResults()
+                if (fromDb.isNotEmpty()) {
+                    globalCache = fromDb
+                    saveToCsv(context, fromDb.values)
+                }
             }
         }
 
-        // DB에 데이터가 있는지 확인하여 로드
-        val db = LottoDatabase(context)
-        if (db.hasData()) {
-            val fromDb = db.getAllResults()
-            if (fromDb.isNotEmpty()) {
-                globalCache = fromDb
-                saveToExternalStorage(context, fromDb.values)
-                return@withContext
-            }
+        // 최신 회차까지 누락분이 있으면 동행복권 API로 동기화
+        val latestStored = getLatestStoredRound(context) ?: 0
+        val targetRound = com.umicorp.autolotto.dhlottery.PurchaseService.getCurrentRound() - 1
+        if (latestStored < targetRound) {
+            fetchAndSaveRange(context, resultService, latestStored + 1, targetRound, onProgress)
         }
-
-        val endRound = com.umicorp.autolotto.dhlottery.PurchaseService.getCurrentRound()
-
-        // 1. Lottotapa 스크래핑 시도
-        val lottotapaResults = com.umicorp.autolotto.dhlottery.LottotapaParser.fetchAndParse(endRound)
-        if (lottotapaResults.isNotEmpty()) {
-            saveWinningResults(context, lottotapaResults)
-            return@withContext
-        }
-
-        // 2. Lottotapa 실패 시 동행복권 API로 1000회~endRound 폴백 수집
-        fetchAndSaveRange(context, resultService, 1000, endRound, onProgress)
     }
 
     /**

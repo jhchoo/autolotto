@@ -90,7 +90,6 @@ dependencies {
 
     // 머니패스 코어 (Slice 1+에서 사용) — dhlottery 세션/암호화/보안저장
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.jsoup:jsoup:1.18.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     // ponytail: EncryptedSharedPreferences는 deprecated지만 동작 표준. 제거되면 Tink/Keystore로 교체
     implementation("androidx.security:security-crypto:1.1.0-alpha06")

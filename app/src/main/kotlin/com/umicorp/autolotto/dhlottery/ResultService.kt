@@ -23,37 +23,74 @@ class ResultService(private val session: DhlotterySession = DhlotterySession()) 
             // 쿠키 획득용 메인 방문
             session.get(session.baseUrl, follow = true).close()
 
-            val url = session.base(ApiConstants.WINNING_NUMBER) +
-                if (roundNo != null) "?drwNo=$roundNo" else ""
-
-            session.get(url, follow = true).use { resp ->
-                if (resp.code != 200) return@withContext null
-                val body = resp.body?.string().orEmpty()
-                val items = JSONObject(body).optJSONObject("data")?.optJSONArray("list")
-                if (items == null || items.length() == 0) return@withContext null
-
-                val item = items.getJSONObject(0)
-                val numbers = listOf(
-                    item.getInt("tm1WnNo"),
-                    item.getInt("tm2WnNo"),
-                    item.getInt("tm3WnNo"),
-                    item.getInt("tm4WnNo"),
-                    item.getInt("tm5WnNo"),
-                    item.getInt("tm6WnNo"),
-                ).sorted()
-
-                WinningResult(
-                    round = item.getInt("ltEpsd"),
-                    numbers = numbers,
-                    bonus = item.getInt("bnsWnNo"),
-                    date = parseDate(item.optString("ltRflYmd", "")),
-                    prize1st = item.optLong("rnk1WnAmt", 0), // Long — Int.MAX(21.4억) 초과 가능
-                    prize2nd = item.optLong("rnk2WnAmt", 0),
-                    prize3rd = item.optLong("rnk3WnAmt", 0),
-                )
+            val targetRound = roundNo ?: (PurchaseService.getCurrentRound() - 1)
+            var result = fetchRound(targetRound)
+            if (result == null && roundNo == null && targetRound > 1) {
+                // 직전 회차가 아직 미게시된 경우 그 이전 회차 폴백 시도
+                result = fetchRound(targetRound - 1)
             }
+            result
         } catch (e: Exception) {
             null
+        }
+    }
+
+    private fun fetchRound(targetRound: Int): WinningResult? {
+        val url = session.base(ApiConstants.WINNING_NUMBER) + "?srchLtEpsd=$targetRound"
+        return session.get(url, follow = true).use { resp ->
+            if (resp.code != 200) return null
+            val body = resp.body?.string().orEmpty()
+            val items = JSONObject(body).optJSONObject("data")?.optJSONArray("list")
+            if (items == null || items.length() == 0) return null
+
+            val item = items.getJSONObject(0)
+            val round = optInt(item, "ltEpsd")
+            val numbers = listOf(
+                optInt(item, "tm1WnNo"),
+                optInt(item, "tm2WnNo"),
+                optInt(item, "tm3WnNo"),
+                optInt(item, "tm4WnNo"),
+                optInt(item, "tm5WnNo"),
+                optInt(item, "tm6WnNo"),
+            ).filter { it in 1..45 }.sorted()
+            if (numbers.size != 6 || round <= 0) return null
+
+            val bonus = optInt(item, "bnsWnNo")
+            val dateRaw = item.optString("ltRflYmd", "")
+            val date = if (dateRaw.isNotBlank()) parseDate(dateRaw) else PurchaseService.getDrawDates(round).drawDate.toString()
+            val prize1st = optLong(item, "rnk1WnAmt", 0L)
+            val winnerCount1st = optInt(item, "rnk1WnNope", 0)
+            val prize2nd = optLong(item, "rnk2WnAmt", 0L)
+            val prize3rd = optLong(item, "rnk3WnAmt", 0L)
+
+            WinningResult(
+                round = round,
+                numbers = numbers,
+                bonus = bonus,
+                date = date,
+                prize1st = prize1st,
+                prize2nd = prize2nd,
+                prize3rd = prize3rd,
+                winnerCount1st = winnerCount1st,
+            )
+        }
+    }
+
+    private fun optInt(item: JSONObject, key: String, default: Int = 0): Int {
+        val v = item.opt(key) ?: return default
+        return when (v) {
+            is Number -> v.toInt()
+            is String -> v.replace(",", "").trim().toIntOrNull() ?: default
+            else -> default
+        }
+    }
+
+    private fun optLong(item: JSONObject, key: String, default: Long = 0L): Long {
+        val v = item.opt(key) ?: return default
+        return when (v) {
+            is Number -> v.toLong()
+            is String -> v.replace(",", "").trim().toLongOrNull() ?: default
+            else -> default
         }
     }
 
