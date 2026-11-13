@@ -511,6 +511,12 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     fun hasCredentials(): Boolean = container.store.hasCredentials()
 
+    fun saveLastUserId(id: String) {
+        if (id.isNotBlank()) {
+            container.setLastUserId(id.trim())
+        }
+    }
+
     private fun mapLoginException(e: Exception): LoginState {
         val msg = e.message.orEmpty()
         return when {

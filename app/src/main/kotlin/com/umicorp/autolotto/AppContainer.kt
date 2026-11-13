@@ -313,6 +313,12 @@ class AppContainer(context: Context) {
         _balance.value = auth.getBalance()
     }
 
+    /** 확인 버튼 클릭 시 아이디 즉시 저장 */
+    fun setLastUserId(userId: String) {
+        store.setLastUserId(userId)
+        _lastUserId.value = userId
+    }
+
     suspend fun logout() = withContext(Dispatchers.IO) {
         // 진행 중 autoLogin과 직렬화 — 로그아웃 직후 백그라운드 재로그인으로 상태가 되살아나는 것 방지.
         loginMutex.withLock { auth.logout() }

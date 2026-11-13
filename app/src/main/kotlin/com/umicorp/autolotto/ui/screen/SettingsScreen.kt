@@ -175,9 +175,13 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
     fun toast(resId: Int) = scope.launch { snackbar.showSnackbar(context.resources.getString(resId)) }
 
     // 로그인 결과 → 스낵바(원본 _login의 try/catch 스낵바). consume 후 Idle 복귀.
+    // 성공 시에만 다이얼로그를 닫고, 실패 시에는 다이얼로그를 유지하여 비밀번호를 재입력할 수 있게 한다.
     LaunchedEffect(loginState) {
         val msg = when (val state = loginState) {
-            LoginState.Success -> context.resources.getString(R.string.snackbarLoginSuccess)
+            LoginState.Success -> {
+                showLogin = false
+                context.resources.getString(R.string.snackbarLoginSuccess)
+            }
             LoginState.InvalidCredentials -> "❌ " + context.resources.getString(R.string.errorInvalidCredentials)
             is LoginState.Maintenance -> "🚧 " + (state.reason ?: context.resources.getString(R.string.maintenanceBannerNotice))
             is LoginState.Timeout -> "⏱️ 네트워크 지연으로 로그인 시간이 초과되었습니다 (${state.seconds}초). 다시 시도해주세요."
@@ -476,8 +480,12 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
         val lastUserId by vm.lastUserId.collectAsState()
         LoginDialog(
             initialId = lastUserId ?: "",
+            loginState = loginState,
             onDismiss = { showLogin = false },
-            onLogin = { id, pw, save -> vm.login(id, pw, save) },
+            onLogin = { id, pw, save ->
+                vm.saveLastUserId(id)
+                vm.login(id, pw, save)
+            },
         )
     }
     if (showReset) {
@@ -639,13 +647,30 @@ private fun PermissionRow(icon: ImageVector, title: String, desc: String, grante
 }
 
 @Composable
-private fun LoginDialog(initialId: String, onDismiss: () -> Unit, onLogin: (String, String, Boolean) -> Unit) {
+private fun LoginDialog(
+    initialId: String,
+    loginState: LoginState = LoginState.Idle,
+    onDismiss: () -> Unit,
+    onLogin: (String, String, Boolean) -> Unit,
+) {
+    val isLoading = loginState is LoginState.InProgress
     var id by remember { mutableStateOf(initialId) }
     var pw by remember { mutableStateOf("") }
     var showPw by remember { mutableStateOf(false) }
     var saveId by remember { mutableStateOf(true) }
+
+    // 로그인 실패 시 비밀번호 칸만 초기화 (아이디는 유지)
+    LaunchedEffect(loginState) {
+        if (loginState is LoginState.InvalidCredentials ||
+            loginState is LoginState.Maintenance ||
+            loginState is LoginState.Timeout ||
+            loginState is LoginState.Error
+        ) {
+            pw = ""
+        }
+    }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isLoading) onDismiss() },
         title = { Text(stringResource(R.string.dialogLoginTitle)) },
         text = {
             Column {
@@ -655,6 +680,7 @@ private fun LoginDialog(initialId: String, onDismiss: () -> Unit, onLogin: (Stri
                     label = { Text(stringResource(R.string.inputUserId)) },
                     leadingIcon = { Icon(Icons.Rounded.Person, contentDescription = null) },
                     singleLine = true,
+                    enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(12.dp))
@@ -664,7 +690,7 @@ private fun LoginDialog(initialId: String, onDismiss: () -> Unit, onLogin: (Stri
                     label = { Text(stringResource(R.string.inputPassword)) },
                     leadingIcon = { Icon(Icons.Rounded.Lock, contentDescription = null) },
                     trailingIcon = {
-                        IconButton(onClick = { showPw = !showPw }) {
+                        IconButton(onClick = { showPw = !showPw }, enabled = !isLoading) {
                             Icon(
                                 if (showPw) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                                 contentDescription = stringResource(
@@ -676,6 +702,7 @@ private fun LoginDialog(initialId: String, onDismiss: () -> Unit, onLogin: (Stri
                     visualTransformation = if (showPw) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     singleLine = true,
+                    enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
@@ -683,25 +710,53 @@ private fun LoginDialog(initialId: String, onDismiss: () -> Unit, onLogin: (Stri
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { saveId = !saveId }
-                        .padding(vertical = 8.dp)
+                        .then(if (!isLoading) Modifier.clickable { saveId = !saveId } else Modifier)
+                        .padding(vertical = 8.dp),
                 ) {
                     androidx.compose.material3.Checkbox(
                         checked = saveId,
-                        onCheckedChange = { saveId = it }
+                        onCheckedChange = if (!isLoading) { { saveId = it } } else null,
+                        enabled = !isLoading,
                     )
                     Spacer(Modifier.width(8.dp))
                     Text("아이디 저장하기")
+                }
+
+                if (isLoading) {
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp,
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            "로그인 중입니다...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             TextButton(
-                enabled = id.isNotBlank() && pw.isNotBlank(),
-                onClick = { onLogin(id.trim(), pw.trim(), saveId); onDismiss() },
-            ) { Text(stringResource(R.string.buttonLogin)) }
+                enabled = !isLoading && id.isNotBlank() && pw.isNotBlank(),
+                onClick = { onLogin(id.trim(), pw.trim(), saveId) },
+            ) {
+                Text(stringResource(R.string.buttonLogin))
+            }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.buttonCancel)) } },
+        dismissButton = {
+            TextButton(
+                enabled = !isLoading,
+                onClick = onDismiss,
+            ) { Text(stringResource(R.string.buttonCancel)) }
+        },
     )
 }
 
