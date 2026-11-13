@@ -90,6 +90,18 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 /** 번호 설정: 5슬롯(null=미설정 / emptyList=자동 / [nums]=수동) 읽기·쓰기. */
 class NumberViewModel(private val container: AppContainer) : ViewModel() {
     val serverHealth = container.serverHealth
+    val isLoggingIn = container.isLoggingIn
+    val autoLoginFailed = container.autoLoginFailed
+    val hydrationFailed = container.hydrationFailed
+
+    /** amber 클라우드 아이콘 탭 — 설정 하이드레이션·자동 로그인 수동 재시도(공용 복구 경로). */
+    fun retryConnect() {
+        viewModelScope.launch {
+            container.ensureHydrated()
+            container.autoLogin()
+        }
+    }
+
     val autoEnabled = container.autoEnabled
     // 저장 완료 스낵바의 스케줄 문구용(원본 number_screen이 autoPurchaseDay/Hour/Minute 프로바이더를 읽음).
     val autoPurchaseDay = container.autoPurchaseDay
@@ -337,6 +349,7 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
  */
 class HistoryViewModel(private val container: AppContainer) : ViewModel() {
     val isLoggedIn = container.isLoggedIn  // 빈 화면 문구 분기용(원본 isLoggedInProvider watch)
+    val isLoggingIn = container.isLoggingIn
     private val _purchases = MutableStateFlow<List<Purchase>>(emptyList())
     val purchases: StateFlow<List<Purchase>> = _purchases.asStateFlow()
     private val _loading = MutableStateFlow(false)

@@ -78,6 +78,7 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
     val canLoadMore by vm.canLoadMore.collectAsState()
     val error by vm.error.collectAsState()
     val isLoggedIn by vm.isLoggedIn.collectAsState()
+    val isLoggingIn by vm.isLoggingIn.collectAsState()
 
     Scaffold(
         modifier = modifier.creamPageBackground(),
@@ -88,12 +89,26 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
                 title = { Text(stringResource(R.string.historyTitle), fontWeight = FontWeight.ExtraBold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    IconButton(onClick = { vm.loadHistory() }, enabled = !loading) {
-                        Icon(
-                            Icons.Rounded.Refresh,
-                            contentDescription = stringResource(R.string.cdRefresh),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
+                    if (isLoggingIn) {
+                        Box(
+                            modifier = Modifier.size(48.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    } else {
+                        val canRefresh = isLoggedIn && !loading
+                        IconButton(onClick = { vm.loadHistory() }, enabled = canRefresh) {
+                            Icon(
+                                Icons.Rounded.Refresh,
+                                contentDescription = stringResource(R.string.cdRefresh),
+                                tint = if (canRefresh) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
+                            )
+                        }
                     }
                 },
             )

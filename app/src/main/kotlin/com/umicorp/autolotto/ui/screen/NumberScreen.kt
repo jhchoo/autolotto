@@ -49,6 +49,8 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CloudDone
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.WarningAmber
@@ -136,6 +138,9 @@ fun NumberScreen(modifier: Modifier = Modifier) {
     var currentSlot by remember { mutableStateOf(0) }
 
     val serverHealth by vm.serverHealth.collectAsState()
+    val isLoggingIn by vm.isLoggingIn.collectAsState()
+    val autoLoginFailed by vm.autoLoginFailed.collectAsState()
+    val hydrationFailed by vm.hydrationFailed.collectAsState()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -249,6 +254,47 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     )
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
+                actions = {
+                    when {
+                        isLoggingIn -> {
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .size(24.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        isLoggedIn -> {
+                            Icon(
+                                imageVector = Icons.Rounded.CloudDone,
+                                contentDescription = stringResource(R.string.statusLoggedIn),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(end = 16.dp),
+                            )
+                        }
+                        else -> {
+                            // 제3 상태(amber): 자격증명은 있는데 자동 로그인 실패 or 설정 로드 실패 —
+                            // 조용한 '로그인 풀림'과 구분해 탭으로 즉시 복구(사용자 제보 대응).
+                            val connectIssue = hydrationFailed || autoLoginFailed
+                            Icon(
+                                imageVector = Icons.Rounded.CloudOff,
+                                contentDescription = stringResource(
+                                    if (connectIssue) R.string.statusConnectRetry else R.string.statusLoginRequired,
+                                ),
+                                tint = if (connectIssue) LgAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .then(if (connectIssue) Modifier.clickable { vm.retryConnect() } else Modifier),
+                            )
+                        }
+                    }
+                },
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -420,6 +466,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
                     },
                     modifier = Modifier.weight(1f).height(56.dp),
                     shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 8.dp) // 버튼 좌우 여백 축소
                 ) { Text(stringResource(R.string.buttonReset), fontWeight = FontWeight.SemiBold) }
                 CtaButton(
                     onClick = { confirmSlot() },
