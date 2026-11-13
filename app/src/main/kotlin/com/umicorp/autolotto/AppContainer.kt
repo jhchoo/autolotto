@@ -68,6 +68,9 @@ class AppContainer(context: Context) {
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
+    private val _isLoggingIn = MutableStateFlow(false)
+    val isLoggingIn: StateFlow<Boolean> = _isLoggingIn.asStateFlow()
+
     private val _balance = MutableStateFlow(0)
     val balance: StateFlow<Int> = _balance.asStateFlow()
 
@@ -257,6 +260,8 @@ class AppContainer(context: Context) {
             }
             val id = cred.userId ?: return@withContext true   // 자격증명 없음 — 실패 아님
             val pw = cred.password ?: return@withContext true
+            if (id.isBlank() || pw.isBlank()) return@withContext true
+            _isLoggingIn.value = true
             try {
                 executeLoginWithTimeout(id, pw)
                 _isLoggedIn.value = true
@@ -279,6 +284,8 @@ class AppContainer(context: Context) {
                 } else {
                     autoLoginRetryable = true
                 }
+            } finally {
+                _isLoggingIn.value = false
             }
             true
         } finally {
@@ -290,27 +297,32 @@ class AppContainer(context: Context) {
 
     /** 수동 로그인(설정 화면). 실패 시 throw(INVALID_CREDENTIALS 등) — 호출자가 매핑. 잔액알림은 안 함(원본과 동일). */
     suspend fun login(id: String, pw: String, saveId: Boolean = true) {
-        loginMutex.withLock { executeLoginWithTimeout(id, pw) }  // 락 해제 후 PurchaseLock — 중첩 금지(락 순서 규칙)
-        // 로컬 계정 전환 커밋은 구매 임계구역과 직렬화(PurchaseLock) — 워커 구매와 경합 방지.
-        // 회차 가드는 계정의 기록 — 다른 계정 로그인 시 무효화(같은 계정 재로그인은 보존).
-        PurchaseLock.mutex.withLock {
-            if (saveId) {
-                store.saveCredentials(id, pw)
-            } else {
-                store.deleteCredentials()
+        _isLoggingIn.value = true
+        try {
+            loginMutex.withLock { executeLoginWithTimeout(id, pw) }  // 락 해제 후 PurchaseLock — 중첩 금지(락 순서 규칙)
+            // 로컬 계정 전환 커밋은 구매 임계구역과 직렬화(PurchaseLock) — 워커 구매와 경합 방지.
+            // 회차 가드는 계정의 기록 — 다른 계정 로그인 시 무효화(같은 계정 재로그인은 보존).
+            PurchaseLock.mutex.withLock {
+                if (saveId) {
+                    store.saveCredentials(id, pw)
+                } else {
+                    store.deleteCredentials()
+                }
+                store.setLastUserId(id)
+                _lastUserId.value = id
+                val owner = store.getLastPurchaseOwner()
+                if (owner != null && owner != id) {
+                    store.setLastPurchasedRound(0)
+                    _lastPurchasedRound.value = 0
+                }
             }
-            store.setLastUserId(id)
-            _lastUserId.value = id
-            val owner = store.getLastPurchaseOwner()
-            if (owner != null && owner != id) {
-                store.setLastPurchasedRound(0)
-                _lastPurchasedRound.value = 0
-            }
+            _isLoggedIn.value = true
+            _loggedInUserId.value = id
+            _autoLoginFailed.value = false
+            _balance.value = auth.getBalance()
+        } finally {
+            _isLoggingIn.value = false
         }
-        _isLoggedIn.value = true
-        _loggedInUserId.value = id
-        _autoLoginFailed.value = false
-        _balance.value = auth.getBalance()
     }
 
     /** 확인 버튼 클릭 시 아이디 즉시 저장 */
@@ -320,6 +332,7 @@ class AppContainer(context: Context) {
     }
 
     suspend fun logout() = withContext(Dispatchers.IO) {
+        _isLoggingIn.value = false
         // 진행 중 autoLogin과 직렬화 — 로그아웃 직후 백그라운드 재로그인으로 상태가 되살아나는 것 방지.
         loginMutex.withLock { auth.logout() }
         store.deleteCredentials()

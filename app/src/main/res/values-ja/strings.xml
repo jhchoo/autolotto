@@ -85,6 +85,7 @@
     <string name="statusConnectRetry">接続失敗 — タップで再試行</string>
     <string name="buttonLogout">ログアウト</string>
     <string name="buttonLogin">ログイン</string>
+    <string name="buttonLoggingInState">ログイン中</string>
 
     <string name="dialogLoginTitle">同行福券ログイン</string>
     <string name="inputUserId">ユーザーID</string>
@@ -97,6 +98,7 @@
 
     <string name="settingEnableAutoPurchase">自動購入を有効にする</string>
     <string name="hintLoginRequired">ログイン後に利用可能</string>
+    <string name="balanceLoginPending">ログイン完了後に表示</string>
     <string name="gamesConfigured">%1$dゲーム設定済み</string>
     <string name="hintChangeInNumberTab">番号設定タブで変更</string>
     <string name="hintSetupGamesInNumberTab">番号設定タブでゲームを設定してください</string>

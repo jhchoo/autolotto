@@ -100,6 +100,7 @@ fun HomeScreen(
 ) {
     val vm: HomeViewModel = appViewModel()
     val isLoggedIn by vm.isLoggedIn.collectAsState()
+    val isLoggingIn by vm.isLoggingIn.collectAsState()
     val autoLoginFailed by vm.autoLoginFailed.collectAsState()
     val hydrationFailed by vm.hydrationFailed.collectAsState()
     val balance by vm.balance.collectAsState()
@@ -138,29 +139,45 @@ fun HomeScreen(
                 title = { Text(stringResource(R.string.appTitle), fontWeight = FontWeight.ExtraBold) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
                 actions = {
-                    // 제3 상태(amber): 자격증명은 있는데 자동 로그인 실패 or 설정 로드 실패 —
-                    // 조용한 '로그인 풀림'과 구분해 탭으로 즉시 복구(사용자 제보 대응).
-                    val connectIssue = hydrationFailed || (!isLoggedIn && autoLoginFailed)
-                    Icon(
-                        imageVector = if (isLoggedIn) Icons.Rounded.CloudDone else Icons.Rounded.CloudOff,
-                        contentDescription = stringResource(
-                            // connectIssue 우선 — 로그인 성공+설정 로드 실패도 amber로 표시해야
-                            // 탭 타깃(재시도)과 시각 상태가 일치한다(crosscheck 구현 R1 F1).
-                            when {
-                                connectIssue -> R.string.statusConnectRetry
-                                isLoggedIn -> R.string.statusLoggedIn
-                                else -> R.string.statusLoginRequired
-                            },
-                        ),
-                        tint = when {
-                            connectIssue -> LgAmber
-                            isLoggedIn -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier
-                            .padding(end = 16.dp)
-                            .then(if (connectIssue) Modifier.clickable { vm.retryConnect() } else Modifier),
-                    )
+                    when {
+                        isLoggingIn -> {
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .size(24.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        isLoggedIn -> {
+                            Icon(
+                                imageVector = Icons.Rounded.CloudDone,
+                                contentDescription = stringResource(R.string.statusLoggedIn),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(end = 16.dp),
+                            )
+                        }
+                        else -> {
+                            // 제3 상태(amber): 자격증명은 있는데 자동 로그인 실패 or 설정 로드 실패 —
+                            // 조용한 '로그인 풀림'과 구분해 탭으로 즉시 복구(사용자 제보 대응).
+                            val connectIssue = hydrationFailed || autoLoginFailed
+                            Icon(
+                                imageVector = Icons.Rounded.CloudOff,
+                                contentDescription = stringResource(
+                                    if (connectIssue) R.string.statusConnectRetry else R.string.statusLoginRequired,
+                                ),
+                                tint = if (connectIssue) LgAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .padding(end = 16.dp)
+                                    .then(if (connectIssue) Modifier.clickable { vm.retryConnect() } else Modifier),
+                            )
+                        }
+                    }
                 },
             )
         },
@@ -203,7 +220,7 @@ fun HomeScreen(
                 Spacer(Modifier.height(24.dp))
                 WinningNumbers(winning, loadingNumbers)
                 Spacer(Modifier.height(24.dp))
-                BalanceCard(balance, alertEnabled, threshold)
+                BalanceCard(isLoggedIn, isLoggingIn, balance, alertEnabled, threshold)
                 Spacer(Modifier.height(12.dp))
                 AutoStatusCard(autoEnabled, day, hour, minute, onNavigateToSettings)
                 Spacer(Modifier.height(12.dp))
@@ -371,9 +388,15 @@ private fun WinningNumbers(winning: com.umicorp.autolotto.data.WinningResult?, l
 }
 
 @Composable
-private fun BalanceCard(balance: Int, alertEnabled: Boolean, threshold: Int) {
+private fun BalanceCard(
+    isLoggedIn: Boolean,
+    isLoggingIn: Boolean,
+    balance: Int,
+    alertEnabled: Boolean,
+    threshold: Int,
+) {
     val context = LocalContext.current
-    val isLow = alertEnabled && balance <= threshold && balance > 0
+    val isLow = isLoggedIn && alertEnabled && balance <= threshold && balance > 0
     ColorDrenchedCard(accent = if (isLow) LgAmber else LgTeal) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             GlossyIconTile(
@@ -389,13 +412,33 @@ private fun BalanceCard(balance: Int, alertEnabled: Boolean, threshold: Int) {
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White.copy(alpha = 0.85f),
                 )
-                Text(
-                    "₩${formatNumber(balance)}",
-                    style = MaterialTheme.typography.headlineMedium,
-                    // ponytail: Black(900)은 ₩ 폴백 글리프가 합성볼드로 겹쳐 그려짐(취소선처럼 보임) — Bold로 회피
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                )
+                when {
+                    isLoggingIn -> {
+                        Text(
+                            stringResource(R.string.balanceLoginPending),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFD6D6D6),
+                        )
+                    }
+                    !isLoggedIn -> {
+                        Text(
+                            stringResource(R.string.hintLoginRequired),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF8A80),
+                        )
+                    }
+                    else -> {
+                        Text(
+                            "₩${formatNumber(balance)}",
+                            style = MaterialTheme.typography.headlineMedium,
+                            // ponytail: Black(900)은 ₩ 폴백 글리프가 합성볼드로 겹쳐 그려짐(취소선처럼 보임) — Bold로 회피
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                        )
+                    }
+                }
             }
         }
         if (isLow) {

@@ -36,6 +36,7 @@ import java.time.ZonedDateTime
 class HomeViewModel(private val container: AppContainer) : ViewModel() {
     val serverHealth = container.serverHealth
     val isLoggedIn = container.isLoggedIn
+    val isLoggingIn = container.isLoggingIn
     val autoLoginFailed = container.autoLoginFailed
     val hydrationFailed = container.hydrationFailed
     val balance = container.balance
@@ -436,6 +437,7 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
 /** 설정: 로그인/로그아웃·잔액·자동구매 설정·언어·잔액알림·초기화. */
 class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     val isLoggedIn = container.isLoggedIn
+    val isLoggingIn = container.isLoggingIn
     val balance = container.balance
     val autoEnabled = container.autoEnabled
     val lastUserId = container.lastUserId

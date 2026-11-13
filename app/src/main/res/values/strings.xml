@@ -92,6 +92,7 @@
     <string name="statusConnectRetry">연결 실패 — 탭하여 재시도</string>
     <string name="buttonLogout">로그아웃</string>
     <string name="buttonLogin">로그인</string>
+    <string name="buttonLoggingInState">로그인중</string>
 
     <string name="dialogLoginTitle">동행복권 로그인</string>
     <string name="inputUserId">아이디</string>
@@ -104,6 +105,7 @@
 
     <string name="settingEnableAutoPurchase">자동 구매 활성화</string>
     <string name="hintLoginRequired">로그인 후 사용 가능</string>
+    <string name="balanceLoginPending">로그인 완료 후 표시</string>
     <string name="gamesConfigured">%1$d게임 설정됨</string>
     <string name="hintChangeInNumberTab">번호 설정 탭에서 변경</string>
     <string name="hintSetupGamesInNumberTab">번호 설정 탭에서 게임을 설정해주세요</string>

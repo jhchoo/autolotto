@@ -58,6 +58,7 @@ import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -149,6 +150,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
     val scope = rememberCoroutineScope()
 
     val isLoggedIn by vm.isLoggedIn.collectAsState()
+    val isLoggingInContainer by vm.isLoggingIn.collectAsState()
     val balance by vm.balance.collectAsState()
     val loggedInUserId by vm.loggedInUserId.collectAsState()
     val autoEnabled by vm.autoEnabled.collectAsState()
@@ -160,6 +162,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
     val threshold by vm.balanceAlertThreshold.collectAsState()
     val language by vm.language.collectAsState()
     val loginState by vm.loginState.collectAsState()
+    val isLoggingIn = isLoggingInContainer || loginState is LoginState.InProgress
 
     // 알림 토글(원본 _purchaseNoti/_resultNoti) — 화면-로컬, 비영속(원본과 동일하게 표시용).
     var purchaseNoti by remember { mutableStateOf(true) }
@@ -242,15 +245,28 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                         )
                     },
                     trailingContent = {
-                        TextButton(onClick = {
-                            if (isLoggedIn) {
-                                vm.logout()
-                                toast(R.string.snackbarLogoutSuccess)
-                            } else {
-                                showLogin = true
-                            }
-                        }) {
-                            Text(stringResource(if (isLoggedIn) R.string.buttonLogout else R.string.buttonLogin))
+                        TextButton(
+                            onClick = {
+                                if (isLoggedIn) {
+                                    vm.logout()
+                                    toast(R.string.snackbarLogoutSuccess)
+                                } else {
+                                    showLogin = true
+                                }
+                            },
+                            enabled = !isLoggingIn,
+                            colors = ButtonDefaults.textButtonColors(
+                                disabledContentColor = Color.Gray,
+                            ),
+                        ) {
+                            Text(
+                                text = when {
+                                    isLoggingIn -> stringResource(R.string.buttonLoggingInState)
+                                    isLoggedIn -> stringResource(R.string.buttonLogout)
+                                    else -> stringResource(R.string.buttonLogin)
+                                },
+                                color = if (isLoggingIn) Color.Gray else Color.Unspecified,
+                            )
                         }
                     },
                 )
@@ -260,11 +276,31 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                     leadingContent = { SettingIcon(Icons.Rounded.AccountBalanceWallet, LgTeal) },
                     headlineContent = { Text(stringResource(R.string.balanceTitle), fontWeight = FontWeight.Bold) },
                     supportingContent = {
-                        Text(
-                            "₩${formatNumber(balance)}",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                        when {
+                            isLoggingIn -> {
+                                Text(
+                                    stringResource(R.string.balanceLoginPending),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Gray,
+                                )
+                            }
+                            !isLoggedIn -> {
+                                Text(
+                                    stringResource(R.string.hintLoginRequired),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                            else -> {
+                                Text(
+                                    "₩${formatNumber(balance)}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                        }
                     },
                     trailingContent = {
                         if (isLoggedIn) {

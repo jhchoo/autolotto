@@ -85,6 +85,7 @@
     <string name="statusConnectRetry">Connection failed — tap to retry</string>
     <string name="buttonLogout">Logout</string>
     <string name="buttonLogin">Login</string>
+    <string name="buttonLoggingInState">Logging in</string>
 
     <string name="dialogLoginTitle">DHLottery Login</string>
     <string name="inputUserId">User ID</string>
@@ -97,6 +98,7 @@
 
     <string name="settingEnableAutoPurchase">Enable Auto Purchase</string>
     <string name="hintLoginRequired">Login required</string>
+    <string name="balanceLoginPending">Displayed after login</string>
     <string name="gamesConfigured">%1$d games configured</string>
     <string name="hintChangeInNumberTab">Change in Numbers tab</string>
     <string name="hintSetupGamesInNumberTab">Set up games in Numbers tab</string>
