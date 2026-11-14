@@ -65,7 +65,16 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val _loadingNumbers = MutableStateFlow(false)
     val loadingNumbers: StateFlow<Boolean> = _loadingNumbers.asStateFlow()
 
-    init { fetchWinningNumbers() }
+    init {
+        // 빠른 첫 렌더를 위해 캐시/DB에 저장된 최신 당첨결과가 있다면 즉시 설정
+        runCatching {
+            val latestRound = com.umicorp.autolotto.data.LottoHistoryStore.getLatestStoredRound(container.context)
+            if (latestRound != null) {
+                _winning.value = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(container.context)[latestRound]
+            }
+        }
+        fetchWinningNumbers()
+    }
 
     /** 지난/최신 회차 당첨번호 조회 및 획득 후 최신화 동기화 시작. 실패는 무시(원본 debugPrint 후 무시). */
     fun fetchWinningNumbers() {
@@ -76,6 +85,15 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             if (res == null) {
                 // 폴백: currentRound - 1 시도
                 res = runCatching { container.resultService.getWinningNumbers(currentRound - 1) }.getOrNull()
+            }
+            if (res == null) {
+                // 추가 폴백: 로컬 DB/캐시에서 최신 당첨결과 조회
+                val latestRound = runCatching {
+                    com.umicorp.autolotto.data.LottoHistoryStore.getLatestStoredRound(container.context)
+                }.getOrNull()
+                if (latestRound != null) {
+                    res = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(container.context)[latestRound]
+                }
             }
             if (res != null) {
                 _winning.value = res

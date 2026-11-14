@@ -63,3 +63,31 @@ fun formatPurchaseSchedule(day: Int, hour: Int, minute: Int): String {
     val time = String.format(Locale.US, "%02d:%02d", hour, minute)
     return stringResource(R.string.weeklySchedule, localizedDayNames()[day - 1], time)
 }
+
+/**
+ * 1등 당첨금 세후 실수령액 계산:
+ * • 3억 원 이하: 22% (소득세 20% + 지방소득세 2%)
+ * • 3억 원 초과분: 33% (소득세 30% + 지방소득세 3%)
+ */
+fun calculateNetPrize(prize: Long): Long {
+    if (prize <= 0L) return 0L
+    return if (prize <= 300_000_000L) {
+        (prize * 78L) / 100L
+    } else {
+        val over300m = prize - 300_000_000L
+        234_000_000L + ((over300m * 67L) / 100L)
+    }
+}
+
+/** 세후 금액을 억원 단위로 어림(반올림) 포맷팅 */
+fun formatNetPrizeUnit(netPrize: Long): String {
+    if (netPrize <= 0L) return ""
+    val eok = kotlin.math.round(netPrize.toDouble() / 100_000_000.0).toLong()
+    return if (eok > 0L) {
+        "${eok}억원"
+    } else {
+        val man = kotlin.math.round(netPrize.toDouble() / 10_000.0).toLong()
+        "${man}만원"
+    }
+}
+

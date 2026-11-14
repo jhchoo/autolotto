@@ -56,6 +56,8 @@ import com.umicorp.autolotto.ui.theme.MotionSpecs
 import com.umicorp.autolotto.ui.theme.ctaGradient
 import com.umicorp.autolotto.ui.theme.heroGradient
 import com.umicorp.autolotto.ui.util.ballColor
+import com.umicorp.autolotto.ui.util.calculateNetPrize
+import com.umicorp.autolotto.ui.util.formatNetPrizeUnit
 
 /**
  * 로또 번호 공 (홈·번호·내역 공유). Lucky Gloss "캔디" 룩: 방사형 하이라이트 + 소프트 그림자 + 림.
@@ -439,4 +441,47 @@ fun InstantPurchaseCta(
         )
     }
 }
+
+/**
+ * 1등 당첨 금액, 당첨 인원, 세후 실수령액 표시 컴포넌트 (홈 및 지난 당첨번호 목록 공용).
+ */
+@Composable
+fun WinningPrizeInfo(
+    prize1st: Long,
+    winnerCount1st: Int,
+    modifier: Modifier = Modifier,
+) {
+    if (prize1st <= 0L && winnerCount1st <= 0) return
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val prizeFormatted = if (prize1st > 0L) {
+            String.format(java.util.Locale.KOREA, "%,d 원", prize1st)
+        } else {
+            ""
+        }
+        Text(
+            text = prizeFormatted,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        val netPrize = calculateNetPrize(prize1st)
+        val netPrizeUnit = formatNetPrizeUnit(netPrize)
+        val rightText = when {
+            winnerCount1st > 0 && netPrizeUnit.isNotBlank() -> "${winnerCount1st}명, 세후 $netPrizeUnit"
+            winnerCount1st > 0 -> "${winnerCount1st}명"
+            netPrizeUnit.isNotBlank() -> "세후 $netPrizeUnit"
+            else -> ""
+        }
+        Text(
+            text = rightText,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 

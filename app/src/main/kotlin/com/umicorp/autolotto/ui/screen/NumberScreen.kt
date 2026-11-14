@@ -156,6 +156,7 @@ fun NumberScreen(modifier: Modifier = Modifier) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
+    val scrollState = rememberScrollState()
 
     // 확정 버튼 팝(눌림 0.92 → 오버슛 복귀) — 확정이 접수됐다는 즉각 피드백 (사용자 피드백).
     val confirmPop = remember { Animatable(1f) }
@@ -191,7 +192,21 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             SlotMode.MANUAL -> finalizedManual
         }
         vm.saveConfig(games.toList())
-        if (currentSlot < 4) currentSlot++
+
+        // 미확정된 다음 슬롯 탐색 (현재 슬롯 이후 -> 없으면 처음부터 현재 슬롯 이전)
+        val nextUnconfirmedSlot = (currentSlot + 1 until 5).firstOrNull { games[it] == null }
+            ?: (0 until currentSlot).firstOrNull { games[it] == null }
+
+        if (nextUnconfirmedSlot != null) {
+            currentSlot = nextUnconfirmedSlot
+            scope.launch {
+                scrollState.animateScrollTo(0)
+            }
+        } else {
+            scope.launch {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+        }
         syncEditorToSlot()
         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
         scope.launch { confirmPop.snapTo(0.92f); confirmPop.animateTo(1f, MotionSpecs.bouncy()) }
@@ -259,8 +274,6 @@ fun NumberScreen(modifier: Modifier = Modifier) {
             },
         )
     }
-
-    val scrollState = rememberScrollState()
 
     Box(modifier) {
     Scaffold(

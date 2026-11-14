@@ -1142,36 +1142,10 @@ fun WinningHistoryScreen(
                                 }
                                 if (r.prize1st > 0 || r.winnerCount1st > 0) {
                                     Spacer(Modifier.height(8.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        val prizeFormatted = if (r.prize1st > 0) {
-                                            String.format(java.util.Locale.KOREA, "%,d 원", r.prize1st)
-                                        } else {
-                                            ""
-                                        }
-                                        Text(
-                                            text = prizeFormatted,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-
-                                        val netPrize = calculateNetPrize(r.prize1st)
-                                        val netPrizeUnit = formatNetPrizeUnit(netPrize)
-                                        val rightText = when {
-                                            r.winnerCount1st > 0 && netPrizeUnit.isNotBlank() -> "${r.winnerCount1st}명, 세후 $netPrizeUnit"
-                                            r.winnerCount1st > 0 -> "${r.winnerCount1st}명"
-                                            netPrizeUnit.isNotBlank() -> "세후 $netPrizeUnit"
-                                            else -> ""
-                                        }
-                                        Text(
-                                            text = rightText,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
+                                    WinningPrizeInfo(
+                                        prize1st = r.prize1st,
+                                        winnerCount1st = r.winnerCount1st,
+                                    )
                                 }
                             }
                         }
@@ -1182,33 +1156,6 @@ fun WinningHistoryScreen(
                 }
             }
         }
-    }
-}
-
-/**
- * 1등 당첨금 세후 실수령액 계산:
- * • 3억 원 이하: 22% (소득세 20% + 지방소득세 2%)
- * • 3억 원 초과분: 33% (소득세 30% + 지방소득세 3%)
- */
-private fun calculateNetPrize(prize: Long): Long {
-    if (prize <= 0L) return 0L
-    return if (prize <= 300_000_000L) {
-        prize * 78L / 100L
-    } else {
-        val over300m = prize - 300_000_000L
-        234_000_000L + (over300m * 67L / 100L)
-    }
-}
-
-/** 세후 금액을 억원 단위로 어림(반올림) 포맷팅 */
-private fun formatNetPrizeUnit(netPrize: Long): String {
-    if (netPrize <= 0L) return ""
-    val eok = kotlin.math.round(netPrize.toDouble() / 100_000_000.0).toLong()
-    return if (eok > 0L) {
-        "${eok}억원"
-    } else {
-        val man = kotlin.math.round(netPrize.toDouble() / 10_000.0).toLong()
-        "${man}만원"
     }
 }
 

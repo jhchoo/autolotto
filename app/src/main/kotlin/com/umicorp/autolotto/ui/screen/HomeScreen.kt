@@ -325,33 +325,48 @@ private fun WinningNumbers(winning: com.umicorp.autolotto.data.WinningResult?, l
                             strokeWidth = 2.dp,
                         )
                         1 -> winning?.let { w ->
-                            // 좁은 기기(유효 폭 ≤400dp, 예: 갤럭시 기본 384dp)에서 38dp 고정 볼이
-                            // 카드 폭을 넘어 보너스 볼이 잘림 — 가용 폭에 맞춰 볼 크기 축소.
-                            // 하한 없음: 극단 폭(분할 화면 등)에서도 잘리는 대신 계속 줄어든다.
-                            BoxWithConstraints {
-                                val plusWidth = 20.dp
-                                val balls = w.numbers.size + 1 // 본번호 + 보너스
-                                val ball = ((maxWidth - plusWidth - 6.dp * balls) / balls)
-                                    .coerceIn(0.dp, 38.dp)
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                // 좁은 기기(유효 폭 ≤400dp, 예: 갤럭시 기본 384dp)에서 38dp 고정 볼이
+                                // 카드 폭을 넘어 보너스 볼이 잘림 — 가용 폭에 맞춰 볼 크기 축소.
+                                // 하한 없음: 극단 폭(분할 화면 등)에서도 잘리는 대신 계속 줄어든다.
+                                BoxWithConstraints(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center,
                                 ) {
-                                    w.numbers.forEachIndexed { i, n ->
-                                        PopIn(index = i, key = w.round) { LottoBall(n, size = ball) }
+                                    val plusWidth = 20.dp
+                                    val balls = w.numbers.size + 1 // 본번호 + 보너스
+                                    val ball = ((maxWidth - plusWidth - 6.dp * balls) / balls)
+                                        .coerceIn(0.dp, 38.dp)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        w.numbers.forEachIndexed { i, n ->
+                                            PopIn(index = i, key = w.round) { LottoBall(n, size = ball) }
+                                        }
+                                        // 고정 폭 슬롯 — 폰트 스케일이 커져도 산식이 예약한 폭과 어긋나지 않게
+                                        Box(Modifier.width(plusWidth), contentAlignment = Alignment.Center) {
+                                            Text(
+                                                "+",
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                        PopIn(index = w.numbers.size, key = w.round) {
+                                            LottoBall(w.bonus, size = ball, bordered = true)
+                                        }
                                     }
-                                    // 고정 폭 슬롯 — 폰트 스케일이 커져도 산식이 예약한 폭과 어긋나지 않게
-                                    Box(Modifier.width(plusWidth), contentAlignment = Alignment.Center) {
-                                        Text(
-                                            "+",
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                        )
-                                    }
-                                    PopIn(index = w.numbers.size, key = w.round) {
-                                        LottoBall(w.bonus, size = ball, bordered = true)
-                                    }
+                                }
+                                if (w.prize1st > 0 || w.winnerCount1st > 0) {
+                                    Spacer(Modifier.height(10.dp))
+                                    WinningPrizeInfo(
+                                        prize1st = w.prize1st,
+                                        winnerCount1st = w.winnerCount1st,
+                                    )
                                 }
                             }
                         }
