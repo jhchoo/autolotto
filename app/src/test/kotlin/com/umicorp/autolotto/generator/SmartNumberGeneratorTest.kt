@@ -35,7 +35,7 @@ class SmartNumberGeneratorTest {
 
         val sum = numbers.sum()
         assertTrue(sum in strategy.minSum..strategy.maxSum)
-        assertTrue(sum in 130..180)
+        assertTrue(sum in 110..180)
     }
 
     @Test
@@ -47,14 +47,20 @@ class SmartNumberGeneratorTest {
 
     @Test
     fun isValidLastDigits_validatesMaxSameLastDigit() {
-        assertTrue(SmartNumberGenerator.isValidLastDigits(listOf(7, 17, 24, 31, 42, 45), maxSame = 2)) // 7,17 (2개)
-        assertEquals(false, SmartNumberGenerator.isValidLastDigits(listOf(7, 17, 27, 31, 42, 45), maxSame = 2)) // 7,17,27 (3개) -> false
+        assertTrue(SmartNumberGenerator.isValidLastDigits(listOf(7, 17, 27, 31, 42, 45), maxSame = 3)) // 7,17,27 (3개)
+        assertEquals(false, SmartNumberGenerator.isValidLastDigits(listOf(7, 17, 27, 37, 42, 45), maxSame = 3)) // 7,17,27,37 (4개) -> false
+        // 기본값(3) 검증
+        assertTrue(SmartNumberGenerator.isValidLastDigits(listOf(7, 17, 27, 31, 42, 45)))
+        assertEquals(false, SmartNumberGenerator.isValidLastDigits(listOf(7, 17, 27, 37, 42, 45)))
     }
 
     @Test
     fun isValidConsecutive_validatesMaxConsecutiveNumbers() {
-        assertTrue(SmartNumberGenerator.isValidConsecutive(listOf(10, 11, 20, 25, 30, 40), maxConsecutive = 2)) // 10,11 (2개 연속)
-        assertEquals(false, SmartNumberGenerator.isValidConsecutive(listOf(10, 11, 12, 25, 30, 40), maxConsecutive = 2)) // 10,11,12 (3개 연속) -> false
+        assertTrue(SmartNumberGenerator.isValidConsecutive(listOf(10, 11, 12, 25, 30, 40), maxConsecutive = 3)) // 10,11,12 (3개 연속)
+        assertEquals(false, SmartNumberGenerator.isValidConsecutive(listOf(10, 11, 12, 13, 30, 40), maxConsecutive = 3)) // 10,11,12,13 (4개 연속) -> false
+        // 기본값(3) 검증
+        assertTrue(SmartNumberGenerator.isValidConsecutive(listOf(10, 11, 12, 25, 30, 40)))
+        assertEquals(false, SmartNumberGenerator.isValidConsecutive(listOf(10, 11, 12, 13, 30, 40)))
     }
 
     @Test

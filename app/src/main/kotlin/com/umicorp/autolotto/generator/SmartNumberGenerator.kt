@@ -21,9 +21,9 @@ data class LottoStrategy(
     val randomCount: Int = 2,
     val oddEvenRatios: Set<Pair<Int, Int>> = setOf(3 to 3, 4 to 2, 2 to 4),
     val highLowRatios: Set<Pair<Int, Int>> = setOf(3 to 3, 4 to 2, 2 to 4),
-    val maxSameLastDigit: Int = 2,
-    val maxConsecutive: Int = 2,
-    val minSum: Int = 130,
+    val maxSameLastDigit: Int = 3,
+    val maxConsecutive: Int = 3,
+    val minSum: Int = 110,
     val maxSum: Int = 180,
 ) {
     companion object {
@@ -169,13 +169,13 @@ object SmartNumberGenerator {
     }
 
     /** 끝자리 중복 검증 (동일 끝자리가 maxSame 이하) */
-    fun isValidLastDigits(numbers: List<Int>, maxSame: Int = 2): Boolean {
+    fun isValidLastDigits(numbers: List<Int>, maxSame: Int = 3): Boolean {
         val lastDigitCounts = numbers.groupBy { it % 10 }
         return lastDigitCounts.values.all { it.size <= maxSame }
     }
 
     /** 연속 번호 검증 (최대 연속 개수가 maxConsecutive 이하) */
-    fun isValidConsecutive(numbers: List<Int>, maxConsecutive: Int = 2): Boolean {
+    fun isValidConsecutive(numbers: List<Int>, maxConsecutive: Int = 3): Boolean {
         val sorted = numbers.sorted()
         var currentConsecutive = 1
         for (i in 0 until sorted.size - 1) {
@@ -189,8 +189,8 @@ object SmartNumberGenerator {
         return true
     }
 
-    /** 총합 범위 검증 (기본 130~180) */
-    fun isValidSumRange(numbers: List<Int>, minSum: Int = 130, maxSum: Int = 180): Boolean {
+    /** 총합 범위 검증 (기본 110~180) */
+    fun isValidSumRange(numbers: List<Int>, minSum: Int = 110, maxSum: Int = 180): Boolean {
         val sum = numbers.sum()
         return sum in minSum..maxSum
     }
