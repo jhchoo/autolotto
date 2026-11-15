@@ -235,6 +235,7 @@
     <string name="buttonSearch">Search</string>
 
     <!-- Maintenance / Offline -->
+    <string name="networkRequired">Network connection required.</string>
     <string name="maintenanceDialogTitle">🚧 DHLottery Under Maintenance</string>
     <string name="maintenanceDialogBody">The DHLottery server is currently under maintenance or network connection is unavailable.\n\nThe app switched to offline mode. You can still use offline features such as configuring numbers and viewing saved winning numbers.</string>
     <string name="maintenanceBannerNotice">🚧 DHLottery Server Maintenance (Offline Mode)</string>

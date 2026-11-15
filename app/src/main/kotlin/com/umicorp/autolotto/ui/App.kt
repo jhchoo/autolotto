@@ -157,7 +157,7 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
     var showMaintenanceDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(serverHealth, isLoggingIn, isLoggedIn) {
-        if (isLoggingIn || isLoggedIn || serverHealth is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
+        if (isLoggingIn || isLoggedIn || serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance) {
             showMaintenanceDialog = false
         } else {
             showMaintenanceDialog = true

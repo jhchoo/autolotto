@@ -187,6 +187,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                 showLogin = false
                 context.resources.getString(R.string.snackbarLoginSuccess)
             }
+            LoginState.Offline -> "⚠️ " + context.resources.getString(R.string.networkRequired)
             LoginState.InvalidCredentials -> "⚠️ 동행복권 사이트 서버 문제: 현재 동행복권 사이트 오류로 인해 로그인을 확인할 수 없습니다. (사이트 점검 또는 서버 장애)"
             is LoginState.ServerError -> "🚨 동행복권 서버 오류: " + (state.message ?: "현재 사이트 오류로 인해 로그인이 불가능합니다. 잠시 후 다시 시도해주세요.")
             is LoginState.Maintenance -> "🚧 동행복권 시스템 점검 중: " + (state.reason ?: "동행복권 시스템 점검 또는 서버 작업 중입니다.")
@@ -786,6 +787,7 @@ private fun LoginDialog(
                 }
 
                 val errorMessage = when (loginState) {
+                    LoginState.Offline -> stringResource(R.string.networkRequired)
                     is LoginState.ServerError -> loginState.message ?: "동행복권 사이트 서버 문제로 로그인을 완료할 수 없습니다. 잠시 후 다시 시도해주세요."
                     is LoginState.Maintenance -> loginState.reason ?: "동행복권 시스템 점검 중입니다. 잠시 후 다시 시도해주세요."
                     is LoginState.Timeout -> "동행복권 서버 응답 시간이 초과되었습니다. 사이트 상태를 확인 후 다시 시도해주세요."

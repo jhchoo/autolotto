@@ -81,10 +81,12 @@ object ServerHealthChecker {
         }
     }
 
-    private fun isNetworkConnected(context: Context): Boolean {
-        val cm = context.getSystemService(ConnectivityManager::class.java) ?: return false
-        val network = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(network) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    fun isNetworkConnected(context: Context): Boolean {
+        return runCatching {
+            val cm = context.getSystemService(ConnectivityManager::class.java) ?: return false
+            val network = cm.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
+            caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        }.getOrDefault(false)
     }
 }

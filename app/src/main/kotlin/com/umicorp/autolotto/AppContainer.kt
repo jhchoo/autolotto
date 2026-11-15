@@ -198,7 +198,69 @@ class AppContainer(context: Context) {
     private val historySyncMutex = Mutex()
     private var lastSyncedLatestRound: Int = 0
 
-    private val _serverHealth = MutableStateFlow<com.umicorp.autolotto.dhlottery.ServerHealth>(com.umicorp.autolotto.dhlottery.ServerHealth.Online)
+    init {
+        registerNetworkCallback()
+    }
+
+    private fun registerNetworkCallback() {
+        val cm = appContext.getSystemService(android.net.ConnectivityManager::class.java) ?: return
+        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                val isConnected = com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext)
+                if (isConnected) {
+                    val wasOffline = _serverHealth.value is com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+                    if (wasOffline) {
+                        _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
+                    }
+                    if (!_isLoggedIn.value) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            autoLogin()
+                        }
+                    }
+                }
+            }
+
+            override fun onLost(network: android.net.Network) {
+                val isConnected = com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext)
+                if (!isConnected) {
+                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+                }
+            }
+
+            override fun onCapabilitiesChanged(
+                network: android.net.Network,
+                networkCapabilities: android.net.NetworkCapabilities,
+            ) {
+                val hasInternet = networkCapabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                if (hasInternet) {
+                    val wasOffline = _serverHealth.value is com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+                    if (wasOffline) {
+                        _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
+                    }
+                    if (!_isLoggedIn.value) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            autoLogin()
+                        }
+                    }
+                } else {
+                    val isConnected = com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext)
+                    if (!isConnected) {
+                        _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+                    }
+                }
+            }
+        }
+        runCatching {
+            cm.registerDefaultNetworkCallback(callback)
+        }
+    }
+
+    private val _serverHealth = MutableStateFlow<com.umicorp.autolotto.dhlottery.ServerHealth>(
+        if (com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext))
+            com.umicorp.autolotto.dhlottery.ServerHealth.Online
+        else
+            com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+    )
     val serverHealth: StateFlow<com.umicorp.autolotto.dhlottery.ServerHealth> = _serverHealth.asStateFlow()
 
     /** 서버 접속 및 네트워크 상태 체크 */
@@ -277,6 +339,22 @@ class AppContainer(context: Context) {
     var autoLoginRetryable = false
         private set
 
+    private fun isNetworkException(e: Throwable): Boolean {
+        var current: Throwable? = e
+        while (current != null) {
+            if (current is java.net.UnknownHostException ||
+                current is java.net.ConnectException ||
+                current is java.net.NoRouteToHostException ||
+                current is java.net.PortUnreachableException ||
+                current is java.net.SocketException
+            ) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
+    }
+
     /**
      * 로그인 실행 (대기시간 30초 확정).
      * 타임아웃 발생 시 서버 점검 상태인지 확인하여 점검 여부 또는 타임아웃 예외를 결정한다.
@@ -303,6 +381,10 @@ class AppContainer(context: Context) {
             }
             throw e
         } catch (e: Exception) {
+            if (!com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext) || isNetworkException(e)) {
+                _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+                throw DhlotteryException("OFFLINE:네트워크 연결이 필요합니다.")
+            }
             _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance("동행복권 사이트 서버 오류")
             throw DhlotteryException("SERVER_ERROR:동행복권 사이트 서버 오류: ${e.message ?: "연결 실패"}")
         }
@@ -327,6 +409,13 @@ class AppContainer(context: Context) {
                 _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
                 return@withContext true
             }
+
+            // 네트워크가 연결되어 있지 않으면 자동 로그인을 시도하지 않고 오프라인 상태 설정
+            if (!com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext)) {
+                _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+                return@withContext false
+            }
+
             val cred = try {
                 store.getCredentials()
             } catch (e: Exception) {
@@ -350,17 +439,25 @@ class AppContainer(context: Context) {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _autoLoginFailed.value = true
                 val msg = (e as? DhlotteryException)?.message.orEmpty()
-                val reason = when {
-                    msg.startsWith("MAINTENANCE") -> msg.removePrefix("MAINTENANCE:").takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
-                    msg.startsWith("SERVER_ERROR") -> msg.removePrefix("SERVER_ERROR:").takeIf { it.isNotEmpty() } ?: "동행복권 사이트 서버 문제"
-                    msg.startsWith("TIMEOUT") -> "동행복권 서버 응답 시간 초과"
-                    msg.contains("INVALID_CREDENTIALS") -> "로그인 확인 실패 (동행복권 서버 문제 가능)"
-                    else -> "동행복권 사이트 서버 오류"
+                if (msg.startsWith("OFFLINE") ||
+                    !com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext) ||
+                    isNetworkException(e)
+                ) {
+                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+                    autoLoginRetryable = true
+                } else {
+                    _autoLoginFailed.value = true
+                    val reason = when {
+                        msg.startsWith("MAINTENANCE") -> msg.removePrefix("MAINTENANCE:").takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
+                        msg.startsWith("SERVER_ERROR") -> msg.removePrefix("SERVER_ERROR:").takeIf { it.isNotEmpty() } ?: "동행복권 사이트 서버 문제"
+                        msg.startsWith("TIMEOUT") -> "동행복권 서버 응답 시간 초과"
+                        msg.contains("INVALID_CREDENTIALS") -> "로그인 확인 실패 (동행복권 서버 문제 가능)"
+                        else -> "동행복권 사이트 서버 오류"
+                    }
+                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
+                    autoLoginRetryable = true
                 }
-                _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
-                autoLoginRetryable = true
             } finally {
                 _isLoggingIn.value = false
             }
@@ -374,6 +471,10 @@ class AppContainer(context: Context) {
 
     /** 수동 로그인(설정 화면). 실패 시 throw(INVALID_CREDENTIALS 등) — 호출자가 매핑. 잔액알림은 안 함(원본과 동일). */
     suspend fun login(id: String, pw: String, saveId: Boolean = true) {
+        if (!com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext)) {
+            _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+            throw DhlotteryException("OFFLINE:네트워크 연결이 필요합니다.")
+        }
         _isLoggingIn.value = true
         try {
             loginMutex.withLock { executeLoginWithTimeout(id, pw) }  // 락 해제 후 PurchaseLock — 중첩 금지(락 순서 규칙)

@@ -29,7 +29,10 @@ class NetPrizeTest {
     fun formatNetPrizeUnit_formatting() {
         assertEquals("", formatNetPrizeUnit(0L))
         assertEquals("4000만원", formatNetPrizeUnit(40_000_000L))
-        assertEquals("1억원", formatNetPrizeUnit(78_000_000L))
-        assertEquals("14억원", formatNetPrizeUnit(1_373_000_000L))
+        assertEquals("7800만원", formatNetPrizeUnit(78_000_000L))
+        assertEquals("1억원", formatNetPrizeUnit(100_000_000L))
+        assertEquals("13.7억원", formatNetPrizeUnit(1_373_000_000L))
+        assertEquals("20.1억원", formatNetPrizeUnit(2_010_000_000L))
+        assertEquals("20억원", formatNetPrizeUnit(2_000_000_000L))
     }
 }

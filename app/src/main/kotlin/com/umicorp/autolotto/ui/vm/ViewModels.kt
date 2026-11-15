@@ -74,6 +74,19 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
             }
         }
         fetchWinningNumbers()
+        viewModelScope.launch {
+            var wasOffline = serverHealth.value !is com.umicorp.autolotto.dhlottery.ServerHealth.Online
+            serverHealth.collect { health ->
+                if (health is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
+                    if (wasOffline) {
+                        fetchWinningNumbers()
+                    }
+                    wasOffline = false
+                } else {
+                    wasOffline = true
+                }
+            }
+        }
     }
 
     /** 지난/최신 회차 당첨번호 조회 및 획득 후 최신화 동기화 시작. 실패는 무시(원본 debugPrint 후 무시). */
@@ -552,6 +565,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         data object InProgress : LoginState
         data object Success : LoginState
         data object InvalidCredentials : LoginState
+        data object Offline : LoginState
         data class ServerError(val message: String? = null) : LoginState
         data class Maintenance(val reason: String? = null) : LoginState
         data class Timeout(val seconds: Int) : LoginState
@@ -572,6 +586,7 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     private fun mapLoginException(e: Exception): LoginState {
         val msg = e.message.orEmpty()
         return when {
+            msg.startsWith("OFFLINE") -> LoginState.Offline
             msg.startsWith("MAINTENANCE") -> {
                 val reason = msg.removePrefix("MAINTENANCE:").takeIf { it.isNotBlank() }
                 LoginState.Maintenance(reason)
@@ -588,7 +603,13 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 LoginState.ServerError("동행복권 서버 오류 (HTTP 응답 코드: ${msg.substringAfter("verify_http_")})")
             }
             msg.contains("INVALID_CREDENTIALS") -> LoginState.InvalidCredentials
-            else -> LoginState.ServerError(msg.takeIf { it.isNotBlank() })
+            else -> {
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
+                    LoginState.Offline
+                } else {
+                    LoginState.ServerError(msg.takeIf { it.isNotBlank() })
+                }
+            }
         }
     }
 

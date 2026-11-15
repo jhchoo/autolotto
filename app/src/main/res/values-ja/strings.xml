@@ -235,6 +235,7 @@
     <string name="buttonSearch">検索</string>
 
     <!-- メンテナンス / オフライン -->
+    <string name="networkRequired">ネットワーク接続が必要です。</string>
     <string name="maintenanceDialogTitle">🚧 同行福券 メンテナンス案内</string>
     <string name="maintenanceDialogBody">現在、同行福券サーバーのメンテナンス中またはネットワーク接続ができません。\n\nアプリはオフラインモードに切り替わり、番号設定や保存された当選番号照会などのオフライン機能をご利用いただけます。</string>
     <string name="maintenanceBannerNotice">🚧 同行福券システムメンテナンス中 (オフラインモード)</string>

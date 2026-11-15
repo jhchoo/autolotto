@@ -79,12 +79,17 @@ fun calculateNetPrize(prize: Long): Long {
     }
 }
 
-/** 세후 금액을 억원 단위로 어림(반올림) 포맷팅 */
+/** 세후 금액을 억원 단위(소수점 1자리, 천만원 단위)로 어림(반올림) 포맷팅 */
 fun formatNetPrizeUnit(netPrize: Long): String {
     if (netPrize <= 0L) return ""
-    val eok = kotlin.math.round(netPrize.toDouble() / 100_000_000.0).toLong()
-    return if (eok > 0L) {
-        "${eok}억원"
+    val eok = netPrize.toDouble() / 100_000_000.0
+    val roundedEok = kotlin.math.round(eok * 10.0) / 10.0
+    return if (roundedEok >= 1.0) {
+        if ((roundedEok % 1.0) == 0.0) {
+            "${roundedEok.toLong()}억원"
+        } else {
+            String.format(Locale.KOREA, "%.1f억원", roundedEok)
+        }
     } else {
         val man = kotlin.math.round(netPrize.toDouble() / 10_000.0).toLong()
         "${man}만원"

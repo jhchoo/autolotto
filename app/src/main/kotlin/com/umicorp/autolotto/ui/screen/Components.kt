@@ -458,7 +458,7 @@ fun WinningPrizeInfo(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val prizeFormatted = if (prize1st > 0L) {
-            String.format(java.util.Locale.KOREA, "%,d 원", prize1st)
+            String.format(java.util.Locale.KOREA, "%,d원", prize1st)
         } else {
             ""
         }

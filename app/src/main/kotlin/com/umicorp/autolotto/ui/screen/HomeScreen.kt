@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.CloudDone
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.PauseCircleOutline
+import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
@@ -179,12 +180,17 @@ fun HomeScreen(
             ) {
                 val serverHealth by vm.serverHealth.collectAsState()
                 // 로그인 진행 중(isLoggingIn)이거나 이미 로그인 성공(isLoggedIn)한 상태에서는 점검 배너를 띄우지 않는다.
-                // 로그인 실패/미로그인 상태이고 서버가 점검/오프라인일 때만 배너 표시.
-                if (!isLoggingIn && !isLoggedIn && serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online) {
+                // 오프라인이거나, 미로그인 상태에서 서버가 점검/오프라인일 때 배너 표시.
+                val showBanner = !isLoggingIn && (serverHealth is com.umicorp.autolotto.dhlottery.ServerHealth.Offline ||
+                        (!isLoggedIn && serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Online))
+                if (showBanner) {
                     TonalCard(accent = LgAmber, contentPadding = PaddingValues(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Rounded.CloudOff,
+                                if (serverHealth is com.umicorp.autolotto.dhlottery.ServerHealth.Offline)
+                                    Icons.Rounded.WifiOff
+                                else
+                                    Icons.Rounded.CloudOff,
                                 null,
                                 tint = LgAmber,
                                 modifier = Modifier.size(20.dp),
@@ -193,7 +199,9 @@ fun HomeScreen(
                             val bannerText = when (val h = serverHealth) {
                                 is com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance ->
                                     h.reason?.takeIf { it.isNotBlank() } ?: stringResource(R.string.maintenanceBannerNotice)
-                                else -> stringResource(R.string.maintenanceBannerNotice)
+                                is com.umicorp.autolotto.dhlottery.ServerHealth.Offline ->
+                                    stringResource(R.string.networkRequired)
+                                else -> stringResource(R.string.networkRequired)
                             }
                             Text(
                                 bannerText,
