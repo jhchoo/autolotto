@@ -72,6 +72,9 @@ class CheckResultWorker(context: Context, params: WorkerParameters) : CoroutineW
             // count=10 근거: 온라인 주간 한도 5게임 → 회차당 주문 최대 5건(주문당 ≥1게임),
             // 결과확인은 판매정지 창(토 21:00~) 내 실행이라 대상 회차 주문이 항상 최신이다.
             val purchases = mergePurchasesByRound(history.fetchRecentPurchases(count = 10))
+            runCatching {
+                com.umicorp.autolotto.data.PurchaseStore.saveOrMergePurchases(ctx, userId, purchases)
+            }
             val purchase = purchases.firstOrNull { it.round == winning.round }
                 ?: throw Exception("no_matching_purchase")
             // 추첨 결과가 티켓에 아직 반영되지 않았으면(drawed=false, gameRanks=pending)

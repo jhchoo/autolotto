@@ -122,6 +122,18 @@ class AutoPurchaseWorker(context: Context, params: WorkerParameters) : Coroutine
                 // ponytail: 서버 처리~기록 사이 찰나에 킬되는 창은 남음 — 완전 차단은 구매내역 대조 필요.
                 store.setLastPurchasedRound(r.round)
                 store.setLastPurchaseOwner(userId)
+                runCatching {
+                    val newPurchase = com.umicorp.autolotto.data.Purchase(
+                        round = r.round,
+                        date = java.time.LocalDateTime.now(),
+                        numbers = r.numbers,
+                        autoCount = autoGames,
+                        manualCount = manualNumbers.size,
+                        amount = r.numbers.size * 1000,
+                        checked = false,
+                    )
+                    com.umicorp.autolotto.data.PurchaseStore.saveOrMergePurchase(ctx, userId, newPurchase)
+                }
                 r
             }
 

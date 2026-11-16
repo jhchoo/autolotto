@@ -393,13 +393,14 @@ class AppContainer(context: Context) {
     /**
      * 저장된 자격증명으로 자동 로그인 + 잔액 + 잔액부족 체크. single-flight(tryLock) —
      * 진행 중이면 no-op. 실패는 [autoLoginFailed]로 노출(과거의 조용한 무시 대체). 던지지 않는다.
+     * @param force true이면 메모리상 로그인 상태(auth.isLoggedIn)를 무시하고 실제 재로그인을 강제 수행한다(세션 만료 복구용).
      * @return true = 이 호출이 실제 수행됨(락 획득). false = 다른 로그인이 진행 중이라 스킵 —
      *         호출자가 자기 호출의 실패 여부로 재시도를 판단할 때 선점 상태를 오독하지 않게 한다.
      */
-    suspend fun autoLogin(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun autoLogin(force: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         if (!loginMutex.tryLock()) return@withContext false   // 이미 로그인 진행 중
         try {
-            if (auth.isLoggedIn) {
+            if (!force && auth.isLoggedIn) {
                 // 로그인은 성공했는데 publish 코루틴이 취소된 분기(회전 등) — UI 상태만 동기화.
                 if (!_isLoggedIn.value) {
                     _isLoggedIn.value = true
@@ -592,6 +593,16 @@ class AppContainer(context: Context) {
             runCatching {
                 store.setLastPurchasedRound(r.round)
                 store.setLastPurchaseOwner(id)
+                val newPurchase = com.umicorp.autolotto.data.Purchase(
+                    round = r.round,
+                    date = java.time.LocalDateTime.now(),
+                    numbers = r.numbers,
+                    autoCount = autoGames,
+                    manualCount = manualNumbers.size,
+                    amount = r.numbers.size * 1000,
+                    checked = false,
+                )
+                com.umicorp.autolotto.data.PurchaseStore.saveOrMergePurchase(appContext, id, newPurchase)
             }
             _lastPurchasedRound.value = r.round
             r

@@ -70,6 +70,9 @@
     <string name="historyTitle">Purchase History</string>
     <string name="historyNoRecords">No purchase records</string>
     <string name="historyLoginToLoad">Login to load purchase history</string>
+    <string name="historyLoggingIn">Logging into dhlottery…</string>
+    <string name="historyLoading">Loading purchase history…</string>
+    <string name="historyRetry">Retry</string>
     <string name="historyLoadError">Load failed: %1$s</string>
     <string name="historyLoadMore">Load More</string>
     <string name="statusPending">Pending</string>
