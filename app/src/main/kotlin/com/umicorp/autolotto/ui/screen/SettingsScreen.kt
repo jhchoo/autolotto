@@ -172,6 +172,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
 
     // 다이얼로그 토글.
     var showLogin by remember { mutableStateOf(false) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
     var showReset by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showThreshold by remember { mutableStateOf(false) }
@@ -263,8 +264,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                             TextButton(
                                 onClick = {
                                     if (isLoggedIn) {
-                                        vm.logout()
-                                        toast(R.string.snackbarLogoutSuccess)
+                                        showLogoutConfirm = true
                                     } else {
                                         showLogin = true
                                     }
@@ -529,6 +529,16 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
             onLogin = { id, pw, save ->
                 vm.saveLastUserId(id)
                 vm.login(id, pw, save)
+            },
+        )
+    }
+    if (showLogoutConfirm) {
+        LogoutDialog(
+            onDismiss = { showLogoutConfirm = false },
+            onConfirm = {
+                showLogoutConfirm = false
+                vm.logout()
+                toast(R.string.snackbarLogoutSuccess)
             },
         )
     }
@@ -837,6 +847,21 @@ private fun LoginDialog(
                 onClick = onDismiss,
             ) { Text(stringResource(R.string.buttonCancel)) }
         },
+    )
+}
+
+@Composable
+private fun LogoutDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.dialogLogoutTitle)) },
+        text = { Text(stringResource(R.string.dialogLogoutMessage)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.buttonLogout), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.buttonCancel)) } },
     )
 }
 

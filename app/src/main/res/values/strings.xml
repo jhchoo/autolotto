@@ -105,6 +105,8 @@
     <string name="buttonLoggingInState">로그인중</string>
 
     <string name="dialogLoginTitle">동행복권 로그인</string>
+    <string name="dialogLogoutTitle">로그아웃</string>
+    <string name="dialogLogoutMessage">로그아웃 하시겠습니까?</string>
     <string name="inputUserId">아이디</string>
     <string name="inputPassword">비밀번호</string>
     <string name="buttonCancel">취소</string>

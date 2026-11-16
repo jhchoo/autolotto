@@ -98,6 +98,8 @@
     <string name="buttonLoggingInState">ログイン中</string>
 
     <string name="dialogLoginTitle">同行福券ログイン</string>
+    <string name="dialogLogoutTitle">ログアウト</string>
+    <string name="dialogLogoutMessage">ログアウトしますか？</string>
     <string name="inputUserId">ユーザーID</string>
     <string name="inputPassword">パスワード</string>
     <string name="buttonCancel">キャンセル</string>

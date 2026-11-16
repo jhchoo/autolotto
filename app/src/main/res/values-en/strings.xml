@@ -98,6 +98,8 @@
     <string name="buttonLoggingInState">Logging in</string>
 
     <string name="dialogLoginTitle">DHLottery Login</string>
+    <string name="dialogLogoutTitle">Log Out</string>
+    <string name="dialogLogoutMessage">Are you sure you want to log out?</string>
     <string name="inputUserId">User ID</string>
     <string name="inputPassword">Password</string>
     <string name="buttonCancel">Cancel</string>
