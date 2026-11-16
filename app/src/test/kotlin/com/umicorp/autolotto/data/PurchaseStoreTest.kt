@@ -77,4 +77,14 @@ class PurchaseStoreTest {
         assertEquals(2, loaded[0].numbers.size)
         assertEquals(2000, loaded[0].amount)
     }
+
+    @Test
+    fun `loadPurchases - 특정 계정 캐시 파일이 없으면 기존 캐시 파일로 폴백한다`() {
+        val p = samplePurchase(1234)
+        PurchaseStore.savePurchases(tempFolder.root, "default", listOf(p))
+
+        val loaded = PurchaseStore.loadPurchases(tempFolder.root, "unknownUser")
+        assertEquals(1, loaded.size)
+        assertEquals(1234, loaded[0].round)
+    }
 }

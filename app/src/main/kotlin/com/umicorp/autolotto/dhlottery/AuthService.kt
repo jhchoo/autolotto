@@ -142,9 +142,9 @@ class AuthService(private val session: DhlotterySession) {
             resp.code == 200
         }
 
-    /** 예치금 잔액. 로그인 상태에서만. 만료(HTML)/실패 시 0. (Dart처럼 리다이렉트 추적 안 함) */
-    suspend fun getBalance(): Int = withContext(Dispatchers.IO) {
-        if (!isLoggedIn) return@withContext 0
+    /** 예치금 잔액. 로그인 상태에서만. 만료(HTML)/실패 시 null. (Dart처럼 리다이렉트 추적 안 함) */
+    suspend fun getBalance(): Int? = withContext(Dispatchers.IO) {
+        if (!isLoggedIn) return@withContext null
         try {
             val body = session.get(
                 session.base(ApiConstants.BALANCE),
@@ -154,12 +154,13 @@ class AuthService(private val session: DhlotterySession) {
                 ),
             ).use { it.body?.string().orEmpty() }
             // HTML = 세션 만료 센티넬 (Dart: data.startsWith('{') 가드와 동일)
-            if (!body.trimStart().startsWith("{")) return@withContext 0
-            JSONObject(body).optJSONObject("data")
-                ?.optJSONObject("userMndp")
-                ?.optInt("crntEntrsAmt", 0) ?: 0
+            if (!body.trimStart().startsWith("{")) return@withContext null
+            val userMndp = JSONObject(body).optJSONObject("data")
+                ?.optJSONObject("userMndp") ?: return@withContext null
+            if (!userMndp.has("crntEntrsAmt")) return@withContext null
+            userMndp.optInt("crntEntrsAmt", 0)
         } catch (e: Exception) {
-            0
+            null
         }
     }
 

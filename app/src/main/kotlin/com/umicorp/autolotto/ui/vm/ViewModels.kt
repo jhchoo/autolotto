@@ -421,15 +421,26 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
     /** 현재 목록의 주인 계정 — 계정 전환 시 이전 계정 내역 잔존 방지(crosscheck R2). */
     private var shownUser: String? = null
 
+    private fun loadCachedPurchases(): List<Purchase> {
+        val user = container.loggedInUserId.value
+            ?: container.store.getLastUserId()
+            ?: runCatching { container.store.getCredentials().userId }.getOrNull()
+        return com.umicorp.autolotto.data.PurchaseStore.loadPurchases(container.context, user)
+    }
+
     init {
         // 1. 저장된 계정 기준 로컬 캐시 즉시 복원 (네트워크 지연/오프라인 시 즉시 렌더링)
-        val initialUser = container.loggedInUserId.value ?: container.store.getLastUserId()
-        if (initialUser != null) {
-            val cached = com.umicorp.autolotto.data.PurchaseStore.loadPurchases(container.context, initialUser)
-            if (cached.isNotEmpty()) {
-                _purchases.value = cached
-                shownUser = initialUser
-            }
+        val initialUser = container.loggedInUserId.value
+            ?: container.store.getLastUserId()
+            ?: runCatching { container.store.getCredentials().userId }.getOrNull()
+        val cached = if (initialUser != null) {
+            com.umicorp.autolotto.data.PurchaseStore.loadPurchases(container.context, initialUser)
+        } else {
+            com.umicorp.autolotto.data.PurchaseStore.loadPurchases(container.context, null)
+        }
+        if (cached.isNotEmpty()) {
+            _purchases.value = cached
+            shownUser = initialUser
         }
 
         // 2. 로그인 전이 관찰: 재로그인 시 자동 복구(빈 목록), 로그아웃·계정 전환 시 목록 초기화.
@@ -447,11 +458,9 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
                         user != shownUser -> {
                             shownUser = user
                             resetList()
-                            if (user != null) {
-                                val cached = com.umicorp.autolotto.data.PurchaseStore.loadPurchases(container.context, user)
-                                if (cached.isNotEmpty()) {
-                                    _purchases.value = cached
-                                }
+                            val userCached = loadCachedPurchases()
+                            if (userCached.isNotEmpty()) {
+                                _purchases.value = userCached
                             }
                             loadHistory()
                         }
@@ -483,6 +492,14 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
 
                 if (!container.isLoggedIn.value) {
                     _loading.value = false
+                    // 조회 불가 시 로컬 캐시 사용
+                    val cached = if (_purchases.value.isNotEmpty()) _purchases.value else loadCachedPurchases()
+                    if (cached.isNotEmpty()) {
+                        _purchases.value = cached
+                        _error.value = null
+                    } else if (container.store.hasCredentials()) {
+                        _error.value = "네트워크 연결 또는 동행복권 사이트 상태를 확인해주세요."
+                    }
                     return@launch
                 }
 
@@ -507,6 +524,7 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
                 oldestStart = start
                 windowsLoaded = 1
                 _canLoadMore.value = true
+                _error.value = null
 
                 // 최신 내역을 로컬 캐시에 영속 저장
                 val user = container.loggedInUserId.value ?: container.store.getLastUserId()
@@ -515,9 +533,23 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
                     com.umicorp.autolotto.data.PurchaseStore.savePurchases(container.context, user, merged)
                 }
             } catch (e: Exception) {
-                // 이미 캐시된 데이터가 표시 중이면 에러로 덮어쓰지 않음
-                if (_purchases.value.isEmpty()) {
-                    _error.value = e.message  // 5b가 historyLoadError 템플릿으로 로컬라이즈
+                // 조회 실패 시 로컬 캐시로 폴백!
+                val cached = if (_purchases.value.isNotEmpty()) _purchases.value else loadCachedPurchases()
+                if (cached.isNotEmpty()) {
+                    _purchases.value = cached
+                    _error.value = null // 캐시가 있으므로 에러 화면 대신 캐시된 구매 내역 표시
+                } else {
+                    // 캐시조차 없을 때만 에러 표시
+                    val msg = e.message.orEmpty()
+                    _error.value = when {
+                        msg.contains("OFFLINE") || msg.contains("UnknownHost") || msg.contains("Connect") ->
+                            "네트워크 연결을 확인해주세요."
+                        msg.contains("MAINTENANCE") || msg.contains("점검") ->
+                            "동행복권 사이트 점검 중입니다."
+                        msg.contains("TIMEOUT") || msg.contains("SocketTimeout") ->
+                            "서버 응답 시간이 초과되었습니다."
+                        else -> e.message ?: "연결에 실패했습니다."
+                    }
                 }
                 _canLoadMore.value = false
             } finally {

@@ -29,8 +29,22 @@ object PurchaseStore {
 
     @Synchronized
     fun loadPurchases(baseDir: File, userId: String?): List<Purchase> {
-        val file = getCacheFile(baseDir, userId)
-        if (!file.exists()) return emptyList()
+        var file = getCacheFile(baseDir, userId)
+        if (!file.exists()) {
+            val defaultFile = File(baseDir, "purchases_cache_default.json")
+            if (defaultFile.exists()) {
+                file = defaultFile
+            } else {
+                val anyCache = baseDir.listFiles { f ->
+                    f.name.startsWith("purchases_cache_") && f.name.endsWith(".json")
+                }?.firstOrNull()
+                if (anyCache != null) {
+                    file = anyCache
+                } else {
+                    return emptyList()
+                }
+            }
+        }
         return try {
             val text = file.readText()
             val array = JSONArray(text)

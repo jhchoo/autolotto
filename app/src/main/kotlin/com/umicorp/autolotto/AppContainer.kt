@@ -71,8 +71,8 @@ class AppContainer(context: Context) {
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn.asStateFlow()
 
-    private val _balance = MutableStateFlow(0)
-    val balance: StateFlow<Int> = _balance.asStateFlow()
+    private val _balance = MutableStateFlow<Int?>(null)
+    val balance: StateFlow<Int?> = _balance.asStateFlow()
 
     private val _autoEnabled = MutableStateFlow(false)
     val autoEnabled: StateFlow<Boolean> = _autoEnabled.asStateFlow()
@@ -436,7 +436,9 @@ class AppContainer(context: Context) {
                 _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
                 val b = auth.getBalance()
                 _balance.value = b
-                BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
+                if (b != null) {
+                    BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -520,7 +522,7 @@ class AppContainer(context: Context) {
         // → 로그아웃과 함께 해제·알람 취소. 비로그인 상태에선 스위치가 잠겨 사용자가 끌 수도 없다.
         if (_autoEnabled.value) setAutoEnabled(false)
         _isLoggedIn.value = false
-        _balance.value = 0
+        _balance.value = null
         _loggedInUserId.value = null
         _autoLoginFailed.value = false  // 자격증명 없음 = 실패 상태 아님(amber 해제)
     }
@@ -529,7 +531,9 @@ class AppContainer(context: Context) {
     suspend fun refreshBalance() {
         val b = auth.getBalance()
         _balance.value = b
-        BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
+        if (b != null) {
+            BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
+        }
     }
 
     /** 워커가 백그라운드에서 회차를 갱신했을 수 있어 즉시 구매 CTA 탭 때 재읽기. */

@@ -284,6 +284,7 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                     leadingContent = { SettingIcon(Icons.Rounded.AccountBalanceWallet, LgTeal) },
                     headlineContent = { Text(stringResource(R.string.balanceTitle), fontWeight = FontWeight.Bold) },
                     supportingContent = {
+                        val curBalance = balance
                         when {
                             isLoggingIn -> {
                                 Text(
@@ -301,9 +302,17 @@ fun SettingsScreen(modifier: Modifier = Modifier, onNavigateToNumbers: () -> Uni
                                     color = MaterialTheme.colorScheme.error,
                                 )
                             }
+                            curBalance == null -> {
+                                Text(
+                                    "₩—",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Gray,
+                                )
+                            }
                             else -> {
                                 Text(
-                                    "₩${formatNumber(balance)}",
+                                    "₩${formatNumber(curBalance)}",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                 )

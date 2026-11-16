@@ -73,6 +73,7 @@
     <string name="historyLoggingIn">同行宝くじにログインしています…</string>
     <string name="historyLoading">購入履歴を読み込んでいます…</string>
     <string name="historyRetry">再試行</string>
+    <string name="historyConnectionFailed">購入履歴を読み込めませんでした</string>
     <string name="historyLoadError">読み込み失敗: %1$s</string>
     <string name="historyLoadMore">もっと見る</string>
     <string name="statusPending">確認待ち</string>

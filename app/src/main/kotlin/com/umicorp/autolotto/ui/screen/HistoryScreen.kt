@@ -23,11 +23,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import com.umicorp.autolotto.R
 import com.umicorp.autolotto.data.Purchase
 import com.umicorp.autolotto.ui.appViewModel
+import com.umicorp.autolotto.ui.theme.LgAmber
 import com.umicorp.autolotto.ui.theme.LgGold
 import com.umicorp.autolotto.ui.theme.LgTeal
 import com.umicorp.autolotto.ui.theme.MotionSpecs
@@ -189,34 +192,43 @@ private fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        GlossyIconTile(Icons.Rounded.History, tint = LgTeal, size = 64.dp)
-        Spacer(Modifier.height(16.dp))
-        Text(
-            when {
-                isLoggingIn -> stringResource(R.string.historyLoggingIn)
-                isLoggedIn -> stringResource(R.string.historyNoRecords)
-                else -> stringResource(R.string.historyLoginToLoad)
-            },
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
         if (error != null) {
+            GlossyIconTile(Icons.Rounded.CloudOff, tint = LgAmber, size = 64.dp)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.historyConnectionFailed),
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.historyLoadError, error),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
             )
-            Spacer(Modifier.height(12.dp))
-            TextButton(onClick = onRetry) {
-                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.height(16.dp))
+            FilledTonalButton(onClick = onRetry) {
+                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     stringResource(R.string.historyRetry),
                     fontWeight = FontWeight.Bold,
                 )
             }
+        } else {
+            GlossyIconTile(Icons.Rounded.History, tint = LgTeal, size = 64.dp)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                when {
+                    isLoggingIn -> stringResource(R.string.historyLoggingIn)
+                    isLoggedIn -> stringResource(R.string.historyNoRecords)
+                    else -> stringResource(R.string.historyLoginToLoad)
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
         }
         if (canLoadMore) {
             Spacer(Modifier.height(8.dp))

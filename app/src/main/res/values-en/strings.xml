@@ -73,6 +73,7 @@
     <string name="historyLoggingIn">Logging into dhlottery…</string>
     <string name="historyLoading">Loading purchase history…</string>
     <string name="historyRetry">Retry</string>
+    <string name="historyConnectionFailed">Could not load purchase history</string>
     <string name="historyLoadError">Load failed: %1$s</string>
     <string name="historyLoadMore">Load More</string>
     <string name="statusPending">Pending</string>

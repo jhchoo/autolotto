@@ -394,12 +394,12 @@ private fun WinningNumbers(winning: com.umicorp.autolotto.data.WinningResult?, l
 private fun BalanceCard(
     isLoggedIn: Boolean,
     isLoggingIn: Boolean,
-    balance: Int,
+    balance: Int?,
     alertEnabled: Boolean,
     threshold: Int,
 ) {
     val context = LocalContext.current
-    val isLow = isLoggedIn && alertEnabled && balance <= threshold && balance > 0
+    val isLow = isLoggedIn && alertEnabled && balance != null && balance <= threshold && balance > 0
     ColorDrenchedCard(accent = if (isLow) LgAmber else LgTeal) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             GlossyIconTile(
@@ -430,6 +430,14 @@ private fun BalanceCard(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFFF8A80),
+                        )
+                    }
+                    balance == null -> {
+                        Text(
+                            "₩—",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White.copy(alpha = 0.85f),
                         )
                     }
                     else -> {
