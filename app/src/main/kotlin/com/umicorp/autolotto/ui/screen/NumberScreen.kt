@@ -48,7 +48,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Casino
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CloudDone
@@ -56,7 +55,9 @@ import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
@@ -79,6 +80,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -1228,21 +1230,46 @@ private fun SmartGeneratorDialog(
     val context = LocalContext.current
     val isHistoryLoading by vm.isHistoryLoading.collectAsState()
 
-    var selectedStrategy by remember { mutableStateOf(LottoStrategy.BALANCED) }
-    var generatedNumbers by remember { mutableStateOf(vm.generateSmartNumbers(context, selectedStrategy)) }
+    var selectedStrategyType by remember { mutableStateOf(StrategyType.BALANCED) }
+    var minSumFilter by remember { mutableIntStateOf(110) }
+    var maxSumFilter by remember { mutableIntStateOf(180) }
+    var maxConsecutiveFilter by remember { mutableIntStateOf(3) }
+    var maxSameLastDigitFilter by remember { mutableIntStateOf(3) }
+
+    val currentStrategy = remember(
+        selectedStrategyType,
+        minSumFilter,
+        maxSumFilter,
+        maxConsecutiveFilter,
+        maxSameLastDigitFilter,
+    ) {
+        val base = when (selectedStrategyType) {
+            StrategyType.BALANCED -> LottoStrategy.BALANCED
+            StrategyType.HOT_FOCUS -> LottoStrategy.HOT_FOCUS
+            StrategyType.COLD_FOCUS -> LottoStrategy.COLD_FOCUS
+        }
+        base.copy(
+            minSum = minSumFilter,
+            maxSum = maxSumFilter,
+            maxConsecutive = maxConsecutiveFilter,
+            maxSameLastDigit = maxSameLastDigitFilter,
+        )
+    }
+
+    var generatedNumbers by remember { mutableStateOf(vm.generateSmartNumbers(context, currentStrategy)) }
     var isGuideExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(isHistoryLoading) {
         if (!isHistoryLoading) {
-            generatedNumbers = vm.generateSmartNumbers(context, selectedStrategy)
+            generatedNumbers = vm.generateSmartNumbers(context, currentStrategy)
         }
     }
 
     fun regenerate() {
-        generatedNumbers = vm.generateSmartNumbers(context, selectedStrategy)
+        generatedNumbers = vm.generateSmartNumbers(context, currentStrategy)
     }
 
-    val analysis = remember(isHistoryLoading, selectedStrategy.type, context) {
+    val analysis = remember(isHistoryLoading, selectedStrategyType, context) {
         vm.getFrequencyAnalysis(context, recentCount = 100)
     }
 
@@ -1310,9 +1337,9 @@ private fun SmartGeneratorDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     FilterChip(
-                        selected = selectedStrategy.type == StrategyType.BALANCED,
+                        selected = selectedStrategyType == StrategyType.BALANCED,
                         onClick = {
-                            selectedStrategy = LottoStrategy.BALANCED
+                            selectedStrategyType = StrategyType.BALANCED
                             regenerate()
                         },
                         label = {
@@ -1330,9 +1357,9 @@ private fun SmartGeneratorDialog(
                             .height(46.dp),
                     )
                     FilterChip(
-                        selected = selectedStrategy.type == StrategyType.HOT_FOCUS,
+                        selected = selectedStrategyType == StrategyType.HOT_FOCUS,
                         onClick = {
-                            selectedStrategy = LottoStrategy.HOT_FOCUS
+                            selectedStrategyType = StrategyType.HOT_FOCUS
                             regenerate()
                         },
                         label = {
@@ -1350,9 +1377,9 @@ private fun SmartGeneratorDialog(
                             .height(46.dp),
                     )
                     FilterChip(
-                        selected = selectedStrategy.type == StrategyType.COLD_FOCUS,
+                        selected = selectedStrategyType == StrategyType.COLD_FOCUS,
                         onClick = {
-                            selectedStrategy = LottoStrategy.COLD_FOCUS
+                            selectedStrategyType = StrategyType.COLD_FOCUS
                             regenerate()
                         },
                         label = {
@@ -1450,9 +1477,36 @@ private fun SmartGeneratorDialog(
                         )
                     }
                 }
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
 
-                // 💡 추천 근거 및 통계 필터링 조건 가이드 카드 (접었다 펼치기 가능)
+                // 💡 번호 구성 안내 (선택된 전략: 균형 / 자주 나온 번호 / 장기 미출현 근거)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.smartFilterNumberComposition),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = when (selectedStrategyType) {
+                            StrategyType.BALANCED -> stringResource(R.string.smartStrategyMixBalanced)
+                            StrategyType.HOT_FOCUS -> stringResource(R.string.smartStrategyMixHot)
+                            StrategyType.COLD_FOCUS -> stringResource(R.string.smartStrategyMixCold)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+
+                // ⚙️ 통계 필터링 조건 설정 카드 (접었다 펼치기 가능)
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -1472,10 +1526,10 @@ private fun SmartGeneratorDialog(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Icon(
-                                    Icons.Rounded.CheckCircle,
+                                    Icons.Rounded.Tune,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp),
+                                    modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
@@ -1501,17 +1555,188 @@ private fun SmartGeneratorDialog(
                             Column {
                                 Spacer(Modifier.height(8.dp))
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    text = when (selectedStrategy.type) {
-                                        StrategyType.BALANCED -> stringResource(R.string.smartGuideBalancedCondition)
-                                        StrategyType.HOT_FOCUS -> stringResource(R.string.smartGuideHotCondition)
-                                        StrategyType.COLD_FOCUS -> stringResource(R.string.smartGuideColdCondition)
+                                Spacer(Modifier.height(10.dp))
+
+                                // 1. 총합 범위 (이중 슬라이더)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.smartFilterSumRange),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        "$minSumFilter ~ $maxSumFilter",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                RangeSlider(
+                                    value = minSumFilter.toFloat()..maxSumFilter.toFloat(),
+                                    onValueChange = { range ->
+                                        val start = range.start.toInt()
+                                        val end = range.endInclusive.toInt()
+                                        if (end - start >= 20) {
+                                            minSumFilter = start
+                                            maxSumFilter = end
+                                        }
                                     },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    lineHeight = 18.sp,
+                                    valueRange = 110f..180f,
+                                    steps = 69, // 110부터 180까지 1단위 (총 71개 정수 중 내부 step 69개)
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
+
+                                Spacer(Modifier.height(6.dp))
+
+                                // 2. 연속 번호 선택 (2이하 또는 3이하)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.smartFilterConsecutive),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        FilterChip(
+                                            selected = maxConsecutiveFilter == 2,
+                                            onClick = { maxConsecutiveFilter = 2 },
+                                            label = {
+                                                Text(
+                                                    stringResource(R.string.smartFilterConsecutiveOption2),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
+                                            },
+                                        )
+                                        FilterChip(
+                                            selected = maxConsecutiveFilter == 3,
+                                            onClick = { maxConsecutiveFilter = 3 },
+                                            label = {
+                                                Text(
+                                                    stringResource(R.string.smartFilterConsecutiveOption3),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(6.dp))
+
+                                // 3. 동일 끝수 선택 (2이하 또는 3이하)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.smartFilterLastDigit),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        FilterChip(
+                                            selected = maxSameLastDigitFilter == 2,
+                                            onClick = { maxSameLastDigitFilter = 2 },
+                                            label = {
+                                                Text(
+                                                    stringResource(R.string.smartFilterLastDigitOption2),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
+                                            },
+                                        )
+                                        FilterChip(
+                                            selected = maxSameLastDigitFilter == 3,
+                                            onClick = { maxSameLastDigitFilter = 3 },
+                                            label = {
+                                                Text(
+                                                    stringResource(R.string.smartFilterLastDigitOption3),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(10.dp))
+
+                                // 4. 홀짝 비율 (고정 유지)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.smartFilterOddEven),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        stringResource(R.string.smartFilterOddEvenDesc),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                Spacer(Modifier.height(8.dp))
+
+                                // 5. 저고 비율 (고정 유지)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.smartFilterHighLow),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        stringResource(R.string.smartFilterHighLowDesc),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                Spacer(Modifier.height(6.dp))
+
+                                // 기본값 복원 버튼
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            minSumFilter = 110
+                                            maxSumFilter = 180
+                                            maxConsecutiveFilter = 3
+                                            maxSameLastDigitFilter = 3
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.RestartAlt,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            stringResource(R.string.smartFilterResetDefaults),
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -1556,7 +1781,7 @@ private fun SmartGeneratorDialog(
                         OutlinedButton(
                             onClick = {
                                 val emptyCount = 5
-                                val sets = vm.generateMultipleSmartNumbers(context, emptyCount, selectedStrategy)
+                                val sets = vm.generateMultipleSmartNumbers(context, emptyCount, currentStrategy)
                                 onApplyAllEmpty(sets)
                             },
                             modifier = Modifier.fillMaxWidth(),
