@@ -1,6 +1,8 @@
 package com.umicorp.autolotto.dhlottery
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -31,12 +33,14 @@ class AuthService(private val session: DhlotterySession) {
             isLoggedIn = false
 
             // 1. 메인 / 2. 로그인 페이지 (Dart: 리다이렉트 추적)
+            currentCoroutineContext().ensureActive()
             val mainBody = session.get(session.baseUrl, follow = true).use { resp ->
                 checkMaintenance(resp.code, null)
                 resp.body?.string().orEmpty()
             }
             checkMaintenance(200, mainBody)
 
+            currentCoroutineContext().ensureActive()
             val loginPageBody = session.get(session.base(ApiConstants.LOGIN_PAGE), follow = true).use { resp ->
                 checkMaintenance(resp.code, null)
                 resp.body?.string().orEmpty()
@@ -44,6 +48,7 @@ class AuthService(private val session: DhlotterySession) {
             checkMaintenance(200, loginPageBody)
 
             // 3. RSA 공개키 (Dart: 추적 안 함)
+            currentCoroutineContext().ensureActive()
             val rsaResp = session.get(
                 session.base(ApiConstants.RSA_MODULUS),
                 mapOf(
@@ -69,6 +74,7 @@ class AuthService(private val session: DhlotterySession) {
             val encPw = RsaCrypto.encrypt(password, modulus, exponent)
 
             // 4. 로그인 POST (Dart: 추적). 본문은 Dart처럼 미리 만든 문자열.
+            currentCoroutineContext().ensureActive()
             val form = "userId=$encId&userPswdEncn=$encPw&inpUserId=${URLEncoder.encode(userId, "UTF-8")}"
             val postBody = session.post(
                 session.base(ApiConstants.LOGIN),
@@ -86,15 +92,19 @@ class AuthService(private val session: DhlotterySession) {
 
             // JSESSIONID 없으면 메인 재방문으로 유도 (Dart: 추적)
             if (!session.cookies.hasCookie("JSESSIONID")) {
+                currentCoroutineContext().ensureActive()
                 session.get(session.base(ApiConstants.MAIN), follow = true).close()
             }
 
             // 5. game645 방문으로 ol 세션 발급 (Dart: 첫 main은 추적 안 함, game645는 추적)
+            currentCoroutineContext().ensureActive()
             session.get(session.base(ApiConstants.MAIN)).close()
+            currentCoroutineContext().ensureActive()
             session.get(session.ol(ApiConstants.GAME645), follow = true).close()
 
             // 6. 검증 (mypage 200이면 성공). 네트워크 예외는 전파 = 일시 장애 —
             // 자격증명 거절(INVALID_CREDENTIALS)과 구분해야 재시도 정책이 역전되지 않는다(crosscheck R2).
+            currentCoroutineContext().ensureActive()
             val verified = verifyLogin()
             isLoggedIn = verified
             if (!verified) {

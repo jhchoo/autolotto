@@ -65,6 +65,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val _loadingNumbers = MutableStateFlow(false)
     val loadingNumbers: StateFlow<Boolean> = _loadingNumbers.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         // 빠른 첫 렌더를 위해 캐시/DB에 저장된 최신 당첨결과가 있다면 즉시 설정
         runCatching {
@@ -89,10 +92,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** 지난/최신 회차 당첨번호 조회 및 획득 후 최신화 동기화 시작. 실패는 무시(원본 debugPrint 후 무시). */
-    fun fetchWinningNumbers() {
-        viewModelScope.launch {
-            _loadingNumbers.value = true
+    private suspend fun fetchWinningNumbersSuspend() {
+        _loadingNumbers.value = true
+        try {
             // 1. 최신 당첨결과 조회 (roundNo = null 이면 최신 회차)
             var res = runCatching { container.resultService.getWinningNumbers() }.getOrNull()
             if (res == null) {
@@ -113,16 +115,36 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 // 홈화면의 최신회차 정보를 획득한 뒤 내부 저장소 CSV 최신화 동기화 시작
                 container.startWinningHistorySync(res.round)
             }
+        } finally {
             _loadingNumbers.value = false
         }
     }
 
-    /** 당겨서 새로고침: 당첨번호 + 잔액 + 구매회차. */
-    fun refreshAll() {
-        fetchWinningNumbers()
+    /** 지난/최신 회차 당첨번호 조회 및 획득 후 최신화 동기화 시작. 실패는 무시(원본 debugPrint 후 무시). */
+    fun fetchWinningNumbers() {
         viewModelScope.launch {
-            container.refreshBalance()
-            container.refreshLastPurchasedRound()
+            fetchWinningNumbersSuspend()
+        }
+    }
+
+    /** 당겨서 새로고침: 당첨번호 + 잔액 + 구매회차 (+ 세션/로그인 복구). */
+    fun refreshAll() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                // 비로그인 상태인데 자격증명이 있다면 자동 로그인 먼저 시도
+                if (!container.isLoggedIn.value && container.store.hasCredentials()) {
+                    runCatching { container.autoLogin() }
+                }
+                val winJob = launch { fetchWinningNumbersSuspend() }
+                val balanceJob = launch { container.refreshBalance() }
+                val roundJob = launch { container.refreshLastPurchasedRound() }
+                winJob.join()
+                balanceJob.join()
+                roundJob.join()
+            } finally {
+                _isRefreshing.value = false
+            }
         }
     }
 }

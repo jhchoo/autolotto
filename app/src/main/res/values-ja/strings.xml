@@ -246,4 +246,8 @@
     <string name="maintenanceDialogBody">現在、同行福券サーバーのメンテナンス中またはネットワーク接続ができません。\n\nアプリはオフラインモードに切り替わり、番号設定や保存された当選番号照会などのオフライン機能をご利用いただけます。</string>
     <string name="maintenanceBannerNotice">🚧 同行福券システムメンテナンス中 (オフラインモード)</string>
     <string name="maintenancePurchaseDisabled">メンテナンス中はオンライン購入をご利用いただけません</string>
+
+    <!-- 初回ログインタイムアウト再試行ダイアログ -->
+    <string name="loginTimeoutRetryTitle">⏱️ ログインタイムアウト</string>
+    <string name="loginTimeoutRetryBody">通信または端末の応答遅延によりログインに失敗しました (30秒)。\n\nもう一度ログインを試しますか？</string>
 </resources>

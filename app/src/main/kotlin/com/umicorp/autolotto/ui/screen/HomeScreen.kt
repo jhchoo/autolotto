@@ -111,6 +111,7 @@ fun HomeScreen(
     val threshold by vm.balanceAlertThreshold.collectAsState()
     val winning by vm.winning.collectAsState()
     val loadingNumbers by vm.loadingNumbers.collectAsState()
+    val isRefreshing by vm.isRefreshing.collectAsState()
 
     val snackbar = remember { SnackbarHostState() }
 
@@ -167,7 +168,7 @@ fun HomeScreen(
         },
     ) { inner ->
         PullToRefreshBox(
-            isRefreshing = loadingNumbers,
+            isRefreshing = isRefreshing,
             onRefresh = { vm.refreshAll() },
             modifier = Modifier.padding(inner),
         ) {
