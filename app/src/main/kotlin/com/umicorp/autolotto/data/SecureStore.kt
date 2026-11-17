@@ -35,6 +35,9 @@ object SecureKeys {
     /** 스마트 슬롯 전략 선택 목록 (쉼표 구분: BALANCED,HOT_FOCUS,COLD_FOCUS) */
     const val SMART_STRATEGIES = "smart_strategies"
 
+    /** 마지막으로 확인된 예치금 잔액 (연결 실패/재실행 시 임시 표시용) */
+    const val LAST_KNOWN_BALANCE = "last_known_balance"
+
     /** 마이그레이션·일괄 처리용 전체 키 목록. */
     val ALL = listOf(
         USER_ID, PASSWORD, AUTO_ENABLED, AUTO_GAMES, MANUAL_NUMBERS,
@@ -227,6 +230,16 @@ class SecureStore(context: Context) {
     fun setBalanceAlertLastDate(date: String) = putString(SecureKeys.BALANCE_ALERT_LAST_DATE, date)
 
     fun getBalanceAlertLastDate(): String? = read(SecureKeys.BALANCE_ALERT_LAST_DATE)
+
+    fun setLastKnownBalance(balance: Int?) {
+        if (balance == null) {
+            prefs.edit().remove(SecureKeys.LAST_KNOWN_BALANCE).commit()
+        } else {
+            putString(SecureKeys.LAST_KNOWN_BALANCE, balance.toString())
+        }
+    }
+
+    fun getLastKnownBalance(): Int? = read(SecureKeys.LAST_KNOWN_BALANCE)?.toIntOrNull()
 
     // === 자동구매 멱등 가드 ===
 

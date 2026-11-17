@@ -70,6 +70,10 @@
     <string name="historyTitle">購入履歴</string>
     <string name="historyNoRecords">購入履歴がありません</string>
     <string name="historyLoginToLoad">ログインすると購入履歴を表示します</string>
+    <string name="historyLoggingIn">同行宝くじにログインしています…</string>
+    <string name="historyLoading">購入履歴を読み込んでいます…</string>
+    <string name="historyRetry">再試行</string>
+    <string name="historyConnectionFailed">購入履歴を読み込めませんでした</string>
     <string name="historyLoadError">読み込み失敗: %1$s</string>
     <string name="historyLoadMore">もっと見る</string>
     <string name="statusPending">確認待ち</string>
@@ -98,6 +102,8 @@
     <string name="buttonLoggingInState">ログイン中</string>
 
     <string name="dialogLoginTitle">同行福券ログイン</string>
+    <string name="dialogLogoutTitle">ログアウト</string>
+    <string name="dialogLogoutMessage">ログアウトしますか？</string>
     <string name="inputUserId">ユーザーID</string>
     <string name="inputPassword">パスワード</string>
     <string name="buttonCancel">キャンセル</string>
@@ -256,4 +262,8 @@
     <string name="maintenanceDialogBody">現在、同行福券サーバーのメンテナンス中またはネットワーク接続ができません。\n\nアプリはオフラインモードに切り替わり、番号設定や保存された当選番号照会などのオフライン機能をご利用いただけます。</string>
     <string name="maintenanceBannerNotice">🚧 同行福券システムメンテナンス中 (オフラインモード)</string>
     <string name="maintenancePurchaseDisabled">メンテナンス中はオンライン購入をご利用いただけません</string>
+
+    <!-- 初回ログインタイムアウト再試行ダイアログ -->
+    <string name="loginTimeoutRetryTitle">⏱️ ログインタイムアウト</string>
+    <string name="loginTimeoutRetryBody">通信または端末の応答遅延によりログインに失敗しました (30秒)。\n\nもう一度ログインを試しますか？</string>
 </resources>

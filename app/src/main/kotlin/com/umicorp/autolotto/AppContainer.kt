@@ -24,6 +24,7 @@ import com.umicorp.autolotto.util.OnceGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -71,8 +72,8 @@ class AppContainer(context: Context) {
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn.asStateFlow()
 
-    private val _balance = MutableStateFlow(0)
-    val balance: StateFlow<Int> = _balance.asStateFlow()
+    private val _balance = MutableStateFlow<Int?>(store.getLastKnownBalance())
+    val balance: StateFlow<Int?> = _balance.asStateFlow()
 
     private val _autoEnabled = MutableStateFlow(false)
     val autoEnabled: StateFlow<Boolean> = _autoEnabled.asStateFlow()
@@ -179,6 +180,10 @@ class AppContainer(context: Context) {
         _loggedInUserId.value = userId
         _lastUserId.value = lastUsedId
         _lastPurchasedRound.value = lastRound
+        val lastBalance = store.getLastKnownBalance()
+        if (lastBalance != null && _balance.value == null) {
+            _balance.value = lastBalance
+        }
         _slotSmartStrategies.value = (0 until 5).associateWith { store.getSlotSmartStrategies(it) }
         // 앱 실행마다 알람 재무장(자동구매 활성 시). 업데이트·강제종료·OEM 정리로 소실된 알람 복구 — 멱등.
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
@@ -197,6 +202,7 @@ class AppContainer(context: Context) {
 
     private val historySyncMutex = Mutex()
     private var lastSyncedLatestRound: Int = 0
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         registerNetworkCallback()
@@ -212,8 +218,11 @@ class AppContainer(context: Context) {
                     if (wasOffline) {
                         _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
                     }
-                    if (!_isLoggedIn.value) {
-                        CoroutineScope(Dispatchers.IO).launch {
+                    if (!_isLoggedIn.value &&
+                        !_showInitialTimeoutRetryDialog.value &&
+                        (wasOffline || !_autoLoginFailed.value)
+                    ) {
+                        appScope.launch {
                             autoLogin()
                         }
                     }
@@ -237,8 +246,11 @@ class AppContainer(context: Context) {
                     if (wasOffline) {
                         _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
                     }
-                    if (!_isLoggedIn.value) {
-                        CoroutineScope(Dispatchers.IO).launch {
+                    if (!_isLoggedIn.value &&
+                        !_showInitialTimeoutRetryDialog.value &&
+                        (wasOffline || !_autoLoginFailed.value)
+                    ) {
+                        appScope.launch {
                             autoLogin()
                         }
                     }
@@ -334,6 +346,24 @@ class AppContainer(context: Context) {
     private val _autoLoginFailed = MutableStateFlow(false)
     val autoLoginFailed: StateFlow<Boolean> = _autoLoginFailed.asStateFlow()
 
+    /** 앱 시작 후 첫 자동 로그인 시도가 완료(성공/실패)됐는지 여부 — 첫 실패 타임아웃 팝업 1회 제한용. */
+    @Volatile
+    private var firstAutoLoginHandled = false
+
+    private val _showInitialTimeoutRetryDialog = MutableStateFlow(false)
+    val showInitialTimeoutRetryDialog: StateFlow<Boolean> = _showInitialTimeoutRetryDialog.asStateFlow()
+
+    fun dismissInitialTimeoutRetryDialog() {
+        _showInitialTimeoutRetryDialog.value = false
+    }
+
+    fun retryAfterInitialTimeout() {
+        _showInitialTimeoutRetryDialog.value = false
+        appScope.launch {
+            autoLogin()
+        }
+    }
+
     /** 자동 재시도 가능 여부 — 자격증명 거절(INVALID_CREDENTIALS)은 재시도해도 소용없다. */
     @Volatile
     var autoLoginRetryable = false
@@ -357,7 +387,7 @@ class AppContainer(context: Context) {
 
     /**
      * 로그인 실행 (대기시간 30초 확정).
-     * 타임아웃 발생 시 서버 점검 상태인지 확인하여 점검 여부 또는 타임아웃 예외를 결정한다.
+     * 타임아웃 발생 시 TIMEOUT 예외를 던지고, 서버 점검/응답 오류나 네트워크 오프라인은 각각 구분해 처리한다.
      */
     private suspend fun executeLoginWithTimeout(id: String, pw: String) {
         val timeoutMillis = 30_000L
@@ -368,9 +398,7 @@ class AppContainer(context: Context) {
             }
             _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
         } catch (e: TimeoutCancellationException) {
-            // 30초 타임아웃 발생 -> 동행복권 사이트 서버 문제
-            _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance("서버 응답 지연 (동행복권 사이트 문제)")
-            throw DhlotteryException("SERVER_ERROR:동행복권 서버 응답 시간이 초과되었습니다. 현재 동행복권 사이트에 문제가 발생했습니다.")
+            throw DhlotteryException("TIMEOUT:30")
         } catch (e: DhlotteryException) {
             if (e.message?.startsWith("MAINTENANCE") == true) {
                 val reason = e.message?.removePrefix("MAINTENANCE:")?.takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
@@ -380,7 +408,12 @@ class AppContainer(context: Context) {
                 _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
             }
             throw e
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            if (isTimeoutThrowable(e)) {
+                throw DhlotteryException("TIMEOUT:30")
+            }
             if (!com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext) || isNetworkException(e)) {
                 _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
                 throw DhlotteryException("OFFLINE:네트워크 연결이 필요합니다.")
@@ -393,14 +426,16 @@ class AppContainer(context: Context) {
     /**
      * 저장된 자격증명으로 자동 로그인 + 잔액 + 잔액부족 체크. single-flight(tryLock) —
      * 진행 중이면 no-op. 실패는 [autoLoginFailed]로 노출(과거의 조용한 무시 대체). 던지지 않는다.
+     * @param force true이면 메모리상 로그인 상태(auth.isLoggedIn)를 무시하고 실제 재로그인을 강제 수행한다(세션 만료 복구용).
      * @return true = 이 호출이 실제 수행됨(락 획득). false = 다른 로그인이 진행 중이라 스킵 —
      *         호출자가 자기 호출의 실패 여부로 재시도를 판단할 때 선점 상태를 오독하지 않게 한다.
      */
-    suspend fun autoLogin(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun autoLogin(force: Boolean = false): Boolean = withContext(Dispatchers.IO) {
         if (!loginMutex.tryLock()) return@withContext false   // 이미 로그인 진행 중
         try {
-            if (auth.isLoggedIn) {
+            if (!force && auth.isLoggedIn) {
                 // 로그인은 성공했는데 publish 코루틴이 취소된 분기(회전 등) — UI 상태만 동기화.
+                firstAutoLoginHandled = true
                 if (!_isLoggedIn.value) {
                     _isLoggedIn.value = true
                     runCatching { _loggedInUserId.value = store.getCredentials().userId }
@@ -419,6 +454,7 @@ class AppContainer(context: Context) {
             val cred = try {
                 store.getCredentials()
             } catch (e: Exception) {
+                firstAutoLoginHandled = true
                 _autoLoginFailed.value = true
                 autoLoginRetryable = true
                 return@withContext true
@@ -426,37 +462,55 @@ class AppContainer(context: Context) {
             val id = cred.userId ?: return@withContext true   // 자격증명 없음 — 실패 아님
             val pw = cred.password ?: return@withContext true
             if (id.isBlank() || pw.isBlank()) return@withContext true
+            _showInitialTimeoutRetryDialog.value = false
             _isLoggingIn.value = true
             try {
                 executeLoginWithTimeout(id, pw)
+                firstAutoLoginHandled = true
                 _isLoggedIn.value = true
                 _loggedInUserId.value = id
                 _autoLoginFailed.value = false
                 _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
                 val b = auth.getBalance()
-                _balance.value = b
-                BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
+                if (b != null) {
+                    _balance.value = b
+                    store.setLastKnownBalance(b)
+                    BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
+                } else if (_balance.value == null) {
+                    store.getLastKnownBalance()?.let { _balance.value = it }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                val isFirstAttempt = !firstAutoLoginHandled
+                firstAutoLoginHandled = true
                 val msg = (e as? DhlotteryException)?.message.orEmpty()
-                if (msg.startsWith("OFFLINE") ||
-                    !com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext) ||
-                    isNetworkException(e)
-                ) {
-                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
-                    autoLoginRetryable = true
-                } else {
-                    _autoLoginFailed.value = true
-                    val reason = when {
-                        msg.startsWith("MAINTENANCE") -> msg.removePrefix("MAINTENANCE:").takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
-                        msg.startsWith("SERVER_ERROR") -> msg.removePrefix("SERVER_ERROR:").takeIf { it.isNotEmpty() } ?: "동행복권 사이트 서버 문제"
-                        msg.startsWith("TIMEOUT") -> "동행복권 서버 응답 시간 초과"
-                        msg.contains("INVALID_CREDENTIALS") -> "로그인 확인 실패 (동행복권 서버 문제 가능)"
-                        else -> "동행복권 사이트 서버 오류"
+                val isTimeout = isTimeoutLoginFailure(e, msg)
+                when {
+                    isTimeout -> {
+                        _autoLoginFailed.value = true
+                        if (shouldPromptInitialTimeoutRetry(isFirstAutoLoginAttempt = isFirstAttempt, isTimeoutFailure = true)) {
+                            _showInitialTimeoutRetryDialog.value = true
+                        }
+                        autoLoginRetryable = false
                     }
-                    _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
-                    autoLoginRetryable = true
+                    msg.startsWith("OFFLINE") ||
+                        !com.umicorp.autolotto.dhlottery.ServerHealthChecker.isNetworkConnected(appContext) ||
+                        isNetworkException(e) -> {
+                        _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
+                        autoLoginRetryable = true
+                    }
+                    else -> {
+                        _autoLoginFailed.value = true
+                        val reason = when {
+                            msg.startsWith("MAINTENANCE") -> msg.removePrefix("MAINTENANCE:").takeIf { it.isNotEmpty() } ?: "동행복권 시스템 점검 중"
+                            msg.startsWith("SERVER_ERROR") -> msg.removePrefix("SERVER_ERROR:").takeIf { it.isNotEmpty() } ?: "동행복권 사이트 서버 문제"
+                            msg.contains("INVALID_CREDENTIALS") -> "로그인 확인 실패 (동행복권 서버 문제 가능)"
+                            else -> "동행복권 사이트 서버 오류"
+                        }
+                        _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance(reason)
+                        autoLoginRetryable = true
+                    }
                 }
             } finally {
                 _isLoggingIn.value = false
@@ -475,6 +529,8 @@ class AppContainer(context: Context) {
             _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Offline
             throw DhlotteryException("OFFLINE:네트워크 연결이 필요합니다.")
         }
+        firstAutoLoginHandled = true
+        _showInitialTimeoutRetryDialog.value = false
         _isLoggingIn.value = true
         try {
             loginMutex.withLock { executeLoginWithTimeout(id, pw) }  // 락 해제 후 PurchaseLock — 중첩 금지(락 순서 규칙)
@@ -498,7 +554,13 @@ class AppContainer(context: Context) {
             _loggedInUserId.value = id
             _autoLoginFailed.value = false
             _serverHealth.value = com.umicorp.autolotto.dhlottery.ServerHealth.Online
-            _balance.value = auth.getBalance()
+            val b = auth.getBalance()
+            if (b != null) {
+                _balance.value = b
+                store.setLastKnownBalance(b)
+            } else if (_balance.value == null) {
+                store.getLastKnownBalance()?.let { _balance.value = it }
+            }
         } finally {
             _isLoggingIn.value = false
         }
@@ -512,23 +574,40 @@ class AppContainer(context: Context) {
 
     suspend fun logout() = withContext(Dispatchers.IO) {
         _isLoggingIn.value = false
+        _showInitialTimeoutRetryDialog.value = false
         // 진행 중 autoLogin과 직렬화 — 로그아웃 직후 백그라운드 재로그인으로 상태가 되살아나는 것 방지.
         loginMutex.withLock { auth.logout() }
         store.deleteCredentials()
+        store.setLastKnownBalance(null)
         // 자격증명 없는 자동구매는 매주 조용히 무동작(+다른 계정 재로그인 시 이전 설정으로 재개 위험)
         // → 로그아웃과 함께 해제·알람 취소. 비로그인 상태에선 스위치가 잠겨 사용자가 끌 수도 없다.
         if (_autoEnabled.value) setAutoEnabled(false)
         _isLoggedIn.value = false
-        _balance.value = 0
+        _balance.value = null
         _loggedInUserId.value = null
         _autoLoginFailed.value = false  // 자격증명 없음 = 실패 상태 아님(amber 해제)
     }
 
     /** 잔액 재조회 + 잔액부족 체크(원본 home/_refreshBalance). */
-    suspend fun refreshBalance() {
-        val b = auth.getBalance()
-        _balance.value = b
-        BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
+    suspend fun refreshBalance() = withContext(Dispatchers.IO) {
+        var b = auth.getBalance()
+        // 로그인이 안 되어 있거나 세션 만료 등으로 null이 반환된 경우, 자격증명이 있으면 1회 재로그인 후 재조회
+        if (b == null && store.hasCredentials()) {
+            val relogged = autoLogin(force = true)
+            if (relogged && auth.isLoggedIn) {
+                b = auth.getBalance()
+            }
+        }
+        if (b != null) {
+            _balance.value = b
+            store.setLastKnownBalance(b)
+            BalanceAlert.checkAndNotify(appContext, b, _balanceAlertEnabled.value, _balanceAlertThreshold.value)
+        } else {
+            // 조회 실패 시 기존 가져온 정보가 있다면 -로 바꾸지 않고 유지한다
+            if (_balance.value == null) {
+                store.getLastKnownBalance()?.let { _balance.value = it }
+            }
+        }
     }
 
     /** 워커가 백그라운드에서 회차를 갱신했을 수 있어 즉시 구매 CTA 탭 때 재읽기. */
@@ -592,6 +671,16 @@ class AppContainer(context: Context) {
             runCatching {
                 store.setLastPurchasedRound(r.round)
                 store.setLastPurchaseOwner(id)
+                val newPurchase = com.umicorp.autolotto.data.Purchase(
+                    round = r.round,
+                    date = java.time.LocalDateTime.now(),
+                    numbers = r.numbers,
+                    autoCount = autoGames,
+                    manualCount = manualNumbers.size,
+                    amount = r.numbers.size * 1000,
+                    checked = false,
+                )
+                com.umicorp.autolotto.data.PurchaseStore.saveOrMergePurchase(appContext, id, newPurchase)
             }
             _lastPurchasedRound.value = r.round
             r
@@ -675,11 +764,12 @@ class AppContainer(context: Context) {
 
     // === 데이터 초기화 (원본 설정 화면 `_showResetDialog`) ===
     suspend fun resetAll() = withContext(Dispatchers.IO) {
+        _showInitialTimeoutRetryDialog.value = false
         store.clearAll()
         loginMutex.withLock { auth.logout() }
         scheduler.cancelAll()  // 삭제된 설정을 참조하는 알람 제거 (원본 대비 의도된 보강)
         _isLoggedIn.value = false
-        _balance.value = 0
+        _balance.value = null
         _autoEnabled.value = false
         _autoGames.value = 0
         _autoPurchaseDay.value = 7
@@ -799,3 +889,31 @@ fun purchaseGate(extra: Boolean, recordedRound: Int, currentRound: Int, expected
     !extra && recordedRound >= currentRound -> PurchaseGate.ALREADY_PURCHASED
     else -> PurchaseGate.PROCEED
 }
+
+/** 예외 또는 원인 체인이 타임아웃(30초 초과 / SocketTimeoutException 등)인지 판정. */
+fun isTimeoutThrowable(e: Throwable): Boolean {
+    var current: Throwable? = e
+    while (current != null) {
+        if (current is TimeoutCancellationException ||
+            current is java.net.SocketTimeoutException ||
+            (current is java.io.InterruptedIOException &&
+                current.message?.contains("timeout", ignoreCase = true) == true)
+        ) {
+            return true
+        }
+        current = current.cause
+    }
+    return false
+}
+
+/** 로그인 예외/메시지가 타임아웃 실패인지 판정. 서버 오류·점검·오프라인(서버없음)은 false. */
+fun isTimeoutLoginFailure(
+    e: Throwable,
+    message: String = (e as? DhlotteryException)?.message.orEmpty(),
+): Boolean = message.startsWith("TIMEOUT") || isTimeoutThrowable(e)
+
+/** 앱 시작 후 첫 자동 로그인 실패이면서 타임아웃 실패인 경우에만 재시도 여부 팝업을 띄운다. */
+fun shouldPromptInitialTimeoutRetry(
+    isFirstAutoLoginAttempt: Boolean,
+    isTimeoutFailure: Boolean,
+): Boolean = isFirstAutoLoginAttempt && isTimeoutFailure

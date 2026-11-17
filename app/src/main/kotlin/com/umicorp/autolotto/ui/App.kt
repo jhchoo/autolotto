@@ -99,9 +99,12 @@ fun AppRoot(pendingTab: MutableStateFlow<String?>? = null) {
         lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
             container.ensureHydrated()
             if (container.autoLogin()) {   // true = 이 호출이 실제 수행됨(선점 스킵 아님)
-                // 일시 장애면 3초 뒤 1회 자동 재시도(자격증명 거절은 제외). 백그라운드 진입 시 취소되고
+                // 일시 장애면 3초 뒤 1회 자동 재시도(자격증명 거절·첫 타임아웃 팝업 대기 제외). 백그라운드 진입 시 취소되고
                 // 다음 ON_START가 어차피 재시도한다.
-                if (container.autoLoginFailed.value && container.autoLoginRetryable) {
+                if (container.autoLoginFailed.value &&
+                    container.autoLoginRetryable &&
+                    !container.showInitialTimeoutRetryDialog.value
+                ) {
                     delay(3_000)
                     container.autoLogin()
                 }
@@ -154,10 +157,13 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
     val serverHealth by container.serverHealth.collectAsState()
     val isLoggingIn by container.isLoggingIn.collectAsState()
     val isLoggedIn by container.isLoggedIn.collectAsState()
+    val showInitialTimeoutRetryDialog by container.showInitialTimeoutRetryDialog.collectAsState()
     var showMaintenanceDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(serverHealth, isLoggingIn, isLoggedIn) {
-        if (isLoggingIn || isLoggedIn || serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance) {
+    LaunchedEffect(serverHealth, isLoggingIn, isLoggedIn, showInitialTimeoutRetryDialog) {
+        if (isLoggingIn || isLoggedIn || showInitialTimeoutRetryDialog ||
+            serverHealth !is com.umicorp.autolotto.dhlottery.ServerHealth.Maintenance
+        ) {
             showMaintenanceDialog = false
         } else {
             showMaintenanceDialog = true
@@ -196,6 +202,31 @@ fun AppShell(pendingTab: MutableStateFlow<String?>? = null) {
                 )
             }
         }
+    }
+
+    if (showInitialTimeoutRetryDialog) {
+        AlertDialog(
+            onDismissRequest = { container.dismissInitialTimeoutRetryDialog() },
+            title = {
+                Text(
+                    stringResource(R.string.loginTimeoutRetryTitle),
+                    fontWeight = FontWeight.Bold,
+                )
+            },
+            text = {
+                Text(stringResource(R.string.loginTimeoutRetryBody))
+            },
+            confirmButton = {
+                TextButton(onClick = { container.retryAfterInitialTimeout() }) {
+                    Text(stringResource(R.string.historyRetry))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { container.dismissInitialTimeoutRetryDialog() }) {
+                    Text(stringResource(R.string.buttonCancel))
+                }
+            },
+        )
     }
 
     if (showMaintenanceDialog) {

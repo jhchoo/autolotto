@@ -121,6 +121,19 @@ class AuthServiceSequenceTest {
         assertEquals(50000, auth.getBalance())
     }
 
+    @Test
+    fun `getBalance returns null on HTML session expiration or failure`() = runBlocking {
+        val auth = authFor(successDispatcher("<html>session expired</html>"))
+        auth.login("testUser", "testPass")
+        org.junit.Assert.assertNull(auth.getBalance())
+    }
+
+    @Test
+    fun `getBalance returns null when not logged in`() = runBlocking {
+        val auth = authFor(successDispatcher())
+        org.junit.Assert.assertNull(auth.getBalance())
+    }
+
     /**
      * 비파괴 로그인(crosscheck): 재로그인 실패는 직전 유효 세션을 보존해야 한다.
      * 구 `failed re-login resets isLoggedIn (no zombie session)` 테스트를 의도적으로 교체 —

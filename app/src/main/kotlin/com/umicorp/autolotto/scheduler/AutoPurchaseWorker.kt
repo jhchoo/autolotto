@@ -52,10 +52,15 @@ class AutoPurchaseWorker(context: Context, params: WorkerParameters) : Coroutine
                 result = Result.retry()
             } else {
                 val body = when {
-                    msg.contains("[login]") -> "로그인에 실패했습니다. 아이디/비밀번호를 확인해주세요."
+                    msg.contains("INVALID_CREDENTIALS") -> "로그인에 실패했습니다. 아이디/비밀번호를 확인해주세요."
+                    msg.contains("MAINTENANCE") || msg.contains("점검") -> "동행복권 사이트 점검 중입니다. 점검 완료 후 다시 확인해주세요."
+                    msg.contains("[login]") || msg.contains("SERVER_ERROR") || msg.contains("OFFLINE") ||
+                        msg.contains("TIMEOUT") || msg.contains("연결") || msg.contains("네트워크") ||
+                        msg.contains("Socket") || msg.contains("Connect") || msg.contains("UnknownHost") ->
+                        "동행복권 사이트 연결에 실패했습니다. 네트워크 상태 또는 사이트 점검 여부를 확인해주세요."
                     // API 응답 메시지 그대로 전달 (주간구매금액 초과 등)
                     msg.contains("구매 실패:") -> msg.replace("[purchase] ", "")
-                    else -> "자동 구매에 실패했습니다. 앱을 열어 상태를 확인해주세요."
+                    else -> "자동 구매에 실패했습니다. 네트워크 상태 또는 사이트 점검 여부를 확인해주세요."
                 }
                 Notifications.show(ctx, "⚠️ AutoLotto 오류", body, 99)
             }
@@ -122,13 +127,27 @@ class AutoPurchaseWorker(context: Context, params: WorkerParameters) : Coroutine
                 // ponytail: 서버 처리~기록 사이 찰나에 킬되는 창은 남음 — 완전 차단은 구매내역 대조 필요.
                 store.setLastPurchasedRound(r.round)
                 store.setLastPurchaseOwner(userId)
+                runCatching {
+                    val newPurchase = com.umicorp.autolotto.data.Purchase(
+                        round = r.round,
+                        date = java.time.LocalDateTime.now(),
+                        numbers = r.numbers,
+                        autoCount = autoGames,
+                        manualCount = manualNumbers.size,
+                        amount = r.numbers.size * 1000,
+                        checked = false,
+                    )
+                    com.umicorp.autolotto.data.PurchaseStore.saveOrMergePurchase(ctx, userId, newPurchase)
+                }
                 r
             }
 
             // 구매 후 잔액 체크 (락 밖, 실패 무시 — 원본 catch (_) {})
             runCatching {
                 val postBalance = auth.getBalance()
-                BalanceAlert.checkAndNotify(ctx, postBalance)
+                if (postBalance != null) {
+                    BalanceAlert.checkAndNotify(ctx, postBalance)
+                }
             }
 
             step = "notify"

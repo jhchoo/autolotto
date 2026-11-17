@@ -23,11 +23,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import com.umicorp.autolotto.R
 import com.umicorp.autolotto.data.Purchase
 import com.umicorp.autolotto.ui.appViewModel
+import com.umicorp.autolotto.ui.theme.LgAmber
 import com.umicorp.autolotto.ui.theme.LgGold
 import com.umicorp.autolotto.ui.theme.LgTeal
 import com.umicorp.autolotto.ui.theme.MotionSpecs
@@ -101,7 +104,7 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
                             )
                         }
                     } else {
-                        val canRefresh = isLoggedIn && !loading
+                        val canRefresh = !loading
                         IconButton(onClick = { vm.loadHistory() }, enabled = canRefresh) {
                             Icon(
                                 Icons.Rounded.Refresh,
@@ -116,24 +119,41 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
     ) { inner ->
         // 로딩→빈화면→목록 전환을 부드럽게(표준 Crossfade — 1.4.0엔 Expressive 컴포넌트 미수록).
         val phase = when {
-            loading && purchases.isEmpty() -> 0
-            purchases.isEmpty() -> 1
-            else -> 2
+            purchases.isNotEmpty() -> 2
+            loading || isLoggingIn -> 0
+            else -> 1
         }
         Box(Modifier.fillMaxSize().padding(inner)) {
             Crossfade(targetState = phase, label = "historyState") { p ->
                 when (p) {
                     0 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary,
+                                strokeWidth = 3.dp,
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                if (isLoggingIn) stringResource(R.string.historyLoggingIn)
+                                else stringResource(R.string.historyLoading),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
                     }
 
                     1 -> EmptyState(
                         isLoggedIn = isLoggedIn,
+                        isLoggingIn = isLoggingIn,
                         error = error,
                         // 최근 3개월이 비어도 이전 창에 내역이 있을 수 있음 → 빈 화면에서도 더 보기
                         canLoadMore = isLoggedIn && canLoadMore,
                         loadingMore = loadingMore,
                         onLoadMore = vm::loadMore,
+                        onRetry = { vm.loadHistory() },
                     )
 
                     else -> PullToRefreshBox(
@@ -160,31 +180,54 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun EmptyState(
     isLoggedIn: Boolean,
+    isLoggingIn: Boolean = false,
     error: String?,
     canLoadMore: Boolean = false,
     loadingMore: Boolean = false,
     onLoadMore: () -> Unit = {},
+    onRetry: () -> Unit = {},
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        GlossyIconTile(Icons.Rounded.History, tint = LgTeal, size = 64.dp)
-        Spacer(Modifier.height(16.dp))
-        Text(
-            if (isLoggedIn) stringResource(R.string.historyNoRecords)
-            else stringResource(R.string.historyLoginToLoad),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-        )
         if (error != null) {
+            GlossyIconTile(Icons.Rounded.CloudOff, tint = LgAmber, size = 64.dp)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                stringResource(R.string.historyConnectionFailed),
+                color = MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+            )
             Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.historyLoadError, error),
                 color = MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(16.dp))
+            FilledTonalButton(onClick = onRetry) {
+                Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.historyRetry),
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        } else {
+            GlossyIconTile(Icons.Rounded.History, tint = LgTeal, size = 64.dp)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                when {
+                    isLoggingIn -> stringResource(R.string.historyLoggingIn)
+                    isLoggedIn -> stringResource(R.string.historyNoRecords)
+                    else -> stringResource(R.string.historyLoginToLoad)
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
             )
         }
         if (canLoadMore) {

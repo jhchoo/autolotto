@@ -70,6 +70,10 @@
     <string name="historyTitle">Purchase History</string>
     <string name="historyNoRecords">No purchase records</string>
     <string name="historyLoginToLoad">Login to load purchase history</string>
+    <string name="historyLoggingIn">Logging into dhlottery…</string>
+    <string name="historyLoading">Loading purchase history…</string>
+    <string name="historyRetry">Retry</string>
+    <string name="historyConnectionFailed">Could not load purchase history</string>
     <string name="historyLoadError">Load failed: %1$s</string>
     <string name="historyLoadMore">Load More</string>
     <string name="statusPending">Pending</string>
@@ -98,6 +102,8 @@
     <string name="buttonLoggingInState">Logging in</string>
 
     <string name="dialogLoginTitle">DHLottery Login</string>
+    <string name="dialogLogoutTitle">Log Out</string>
+    <string name="dialogLogoutMessage">Are you sure you want to log out?</string>
     <string name="inputUserId">User ID</string>
     <string name="inputPassword">Password</string>
     <string name="buttonCancel">Cancel</string>
@@ -256,4 +262,8 @@
     <string name="maintenanceDialogBody">The DHLottery server is currently under maintenance or network connection is unavailable.\n\nThe app switched to offline mode. You can still use offline features such as configuring numbers and viewing saved winning numbers.</string>
     <string name="maintenanceBannerNotice">🚧 DHLottery Server Maintenance (Offline Mode)</string>
     <string name="maintenancePurchaseDisabled">Online purchase unavailable during maintenance</string>
+
+    <!-- First login timeout retry dialog -->
+    <string name="loginTimeoutRetryTitle">⏱️ Login Timed Out</string>
+    <string name="loginTimeoutRetryBody">Login failed due to a response delay (30s).\n\nWould you like to try logging in one more time?</string>
 </resources>

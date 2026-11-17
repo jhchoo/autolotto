@@ -65,6 +65,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val _loadingNumbers = MutableStateFlow(false)
     val loadingNumbers: StateFlow<Boolean> = _loadingNumbers.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     init {
         // 빠른 첫 렌더를 위해 캐시/DB에 저장된 최신 당첨결과가 있다면 즉시 설정
         runCatching {
@@ -89,10 +92,9 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** 지난/최신 회차 당첨번호 조회 및 획득 후 최신화 동기화 시작. 실패는 무시(원본 debugPrint 후 무시). */
-    fun fetchWinningNumbers() {
-        viewModelScope.launch {
-            _loadingNumbers.value = true
+    private suspend fun fetchWinningNumbersSuspend() {
+        _loadingNumbers.value = true
+        try {
             // 1. 최신 당첨결과 조회 (roundNo = null 이면 최신 회차)
             var res = runCatching { container.resultService.getWinningNumbers() }.getOrNull()
             if (res == null) {
@@ -113,16 +115,36 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
                 // 홈화면의 최신회차 정보를 획득한 뒤 내부 저장소 CSV 최신화 동기화 시작
                 container.startWinningHistorySync(res.round)
             }
+        } finally {
             _loadingNumbers.value = false
         }
     }
 
-    /** 당겨서 새로고침: 당첨번호 + 잔액 + 구매회차. */
-    fun refreshAll() {
-        fetchWinningNumbers()
+    /** 지난/최신 회차 당첨번호 조회 및 획득 후 최신화 동기화 시작. 실패는 무시(원본 debugPrint 후 무시). */
+    fun fetchWinningNumbers() {
         viewModelScope.launch {
-            container.refreshBalance()
-            container.refreshLastPurchasedRound()
+            fetchWinningNumbersSuspend()
+        }
+    }
+
+    /** 당겨서 새로고침: 당첨번호 + 잔액 + 구매회차 (+ 세션/로그인 복구). */
+    fun refreshAll() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                // 비로그인 상태인데 자격증명이 있다면 자동 로그인 먼저 시도
+                if (!container.isLoggedIn.value && container.store.hasCredentials()) {
+                    runCatching { container.autoLogin() }
+                }
+                val winJob = launch { fetchWinningNumbersSuspend() }
+                val balanceJob = launch { container.refreshBalance() }
+                val roundJob = launch { container.refreshLastPurchasedRound() }
+                winJob.join()
+                balanceJob.join()
+                roundJob.join()
+            } finally {
+                _isRefreshing.value = false
+            }
         }
     }
 }
@@ -421,22 +443,52 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
     /** 현재 목록의 주인 계정 — 계정 전환 시 이전 계정 내역 잔존 방지(crosscheck R2). */
     private var shownUser: String? = null
 
+    private fun loadCachedPurchases(): List<Purchase> {
+        val user = container.loggedInUserId.value
+            ?: container.store.getLastUserId()
+            ?: runCatching { container.store.getCredentials().userId }.getOrNull()
+        return com.umicorp.autolotto.data.PurchaseStore.loadPurchases(container.context, user)
+    }
+
     init {
-        // 로그인 전이 관찰: 재로그인 시 자동 복구(빈 목록), 로그아웃·계정 전환 시 목록 초기화.
+        // 1. 저장된 계정 기준 로컬 캐시 즉시 복원 (네트워크 지연/오프라인 시 즉시 렌더링)
+        val initialUser = container.loggedInUserId.value
+            ?: container.store.getLastUserId()
+            ?: runCatching { container.store.getCredentials().userId }.getOrNull()
+        val cached = if (initialUser != null) {
+            com.umicorp.autolotto.data.PurchaseStore.loadPurchases(container.context, initialUser)
+        } else {
+            com.umicorp.autolotto.data.PurchaseStore.loadPurchases(container.context, null)
+        }
+        if (cached.isNotEmpty()) {
+            _purchases.value = cached
+            shownUser = initialUser
+        }
+
+        // 2. 로그인 전이 관찰: 재로그인 시 자동 복구(빈 목록), 로그아웃·계정 전환 시 목록 초기화.
         viewModelScope.launch {
             combine(container.isLoggedIn, container.loggedInUserId) { logged, user -> logged to user }
                 .collect { (logged, user) ->
                     when {
                         !logged -> {
-                            shownUser = null
-                            if (_purchases.value.isNotEmpty()) resetList()
+                            // 완전히 로그아웃(자격증명 삭제)된 경우에만 캐시 비움
+                            if (!container.store.hasCredentials()) {
+                                shownUser = null
+                                resetList()
+                            }
                         }
                         user != shownUser -> {
                             shownUser = user
                             resetList()
+                            val userCached = loadCachedPurchases()
+                            if (userCached.isNotEmpty()) {
+                                _purchases.value = userCached
+                            }
                             loadHistory()
                         }
                         _purchases.value.isEmpty() && !_loading.value -> loadHistory()
+                        // 캐시가 이미 있더라도 로그인 상태가 확인되면 백그라운드에서 최신 데이터로 동기화
+                        logged && !_loading.value && windowsLoaded == 0 -> loadHistory()
                     }
                 }
         }
@@ -451,21 +503,76 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
 
     /** 첫 3개월 창 로드(새로고침 겸용 — 더 보기로 쌓인 이전 창은 버리고 리셋). */
     fun loadHistory() {
-        if (!container.isLoggedIn.value) return
         viewModelScope.launch {
             _loading.value = true
             _error.value = null
             try {
+                // 비로그인 상태인데 자격증명이 저장되어 있다면 먼저 자동 로그인 시도
+                if (!container.isLoggedIn.value && container.store.hasCredentials()) {
+                    container.autoLogin()
+                }
+
+                if (!container.isLoggedIn.value) {
+                    _loading.value = false
+                    // 조회 불가 시 로컬 캐시 사용
+                    val cached = if (_purchases.value.isNotEmpty()) _purchases.value else loadCachedPurchases()
+                    if (cached.isNotEmpty()) {
+                        _purchases.value = cached
+                        _error.value = null
+                    } else if (container.store.hasCredentials()) {
+                        _error.value = "네트워크 연결 또는 동행복권 사이트 상태를 확인해주세요."
+                    }
+                    return@launch
+                }
+
                 val end = LocalDate.now()
                 val start = end.minusMonths(WINDOW_MONTHS)
+
                 // 회차당 주문이 여러 건일 수 있음(예약 + 즉시/추가 구매) — 카드 1장으로 병합.
-                _purchases.value = mergePurchasesByRound(container.historyService.fetchPurchases(start, end))
-                    .sortedByDescending { it.round }
+                val fetched = try {
+                    container.historyService.fetchPurchases(start, end)
+                } catch (e: Exception) {
+                    // 세션 만료 가능성(HTML 수신/인증오류 등) -> 1회 강제 재로그인 후 재시도
+                    val relogged = container.autoLogin(force = true)
+                    if (relogged && container.isLoggedIn.value) {
+                        container.historyService.fetchPurchases(start, end)
+                    } else {
+                        throw e
+                    }
+                }
+
+                val merged = mergePurchasesByRound(fetched).sortedByDescending { it.round }
+                _purchases.value = merged
                 oldestStart = start
                 windowsLoaded = 1
                 _canLoadMore.value = true
+                _error.value = null
+
+                // 최신 내역을 로컬 캐시에 영속 저장
+                val user = container.loggedInUserId.value ?: container.store.getLastUserId()
+                if (user != null) {
+                    shownUser = user
+                    com.umicorp.autolotto.data.PurchaseStore.savePurchases(container.context, user, merged)
+                }
             } catch (e: Exception) {
-                _error.value = e.message  // 5b가 historyLoadError 템플릿으로 로컬라이즈
+                // 조회 실패 시 로컬 캐시로 폴백!
+                val cached = if (_purchases.value.isNotEmpty()) _purchases.value else loadCachedPurchases()
+                if (cached.isNotEmpty()) {
+                    _purchases.value = cached
+                    _error.value = null // 캐시가 있으므로 에러 화면 대신 캐시된 구매 내역 표시
+                } else {
+                    // 캐시조차 없을 때만 에러 표시
+                    val msg = e.message.orEmpty()
+                    _error.value = when {
+                        msg.contains("OFFLINE") || msg.contains("UnknownHost") || msg.contains("Connect") ->
+                            "네트워크 연결을 확인해주세요."
+                        msg.contains("MAINTENANCE") || msg.contains("점검") ->
+                            "동행복권 사이트 점검 중입니다."
+                        msg.contains("TIMEOUT") || msg.contains("SocketTimeout") ->
+                            "서버 응답 시간이 초과되었습니다."
+                        else -> e.message ?: "연결에 실패했습니다."
+                    }
+                }
                 _canLoadMore.value = false
             } finally {
                 _loading.value = false
@@ -483,10 +590,14 @@ class HistoryViewModel(private val container: AppContainer) : ViewModel() {
                 val start = end.minusMonths(WINDOW_MONTHS)
                 val more = container.historyService.fetchPurchases(start, end)
                 // 창 경계에 걸린 회차도 병합되도록 이어 붙인 전체를 다시 병합.
-                _purchases.value = mergePurchasesByRound(_purchases.value + more).sortedByDescending { it.round }
+                val updated = mergePurchasesByRound(_purchases.value + more).sortedByDescending { it.round }
+                _purchases.value = updated
                 oldestStart = start
                 windowsLoaded++
                 if (windowsLoaded >= MAX_WINDOWS) _canLoadMore.value = false
+                shownUser?.let { user ->
+                    com.umicorp.autolotto.data.PurchaseStore.savePurchases(container.context, user, updated)
+                }
             } catch (_: Exception) {
             } finally {
                 _loadingMore.value = false
