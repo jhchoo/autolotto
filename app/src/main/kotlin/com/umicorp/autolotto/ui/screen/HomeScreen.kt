@@ -51,7 +51,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -167,10 +169,16 @@ fun HomeScreen(
             )
         },
     ) { inner ->
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = { vm.refreshAll() },
-            modifier = Modifier.padding(inner),
+        val pullToRefreshState = rememberPullToRefreshState()
+        Box(
+            modifier = Modifier
+                .padding(inner)
+                .pullToRefresh(
+                    isRefreshing = isRefreshing,
+                    state = pullToRefreshState,
+                    enabled = !isLoggingIn,
+                    onRefresh = { if (!isLoggingIn) vm.refreshAll() },
+                ),
         ) {
             Column(
                 modifier = Modifier
@@ -223,6 +231,11 @@ fun HomeScreen(
                 Spacer(Modifier.height(12.dp))
                 AutoStatusCard(autoEnabled, autoGames, day, hour, minute, onNavigateToSettings)
             }
+            PullToRefreshDefaults.Indicator(
+                modifier = Modifier.align(Alignment.TopCenter),
+                isRefreshing = isRefreshing,
+                state = pullToRefreshState,
+            )
         }
     }
 }

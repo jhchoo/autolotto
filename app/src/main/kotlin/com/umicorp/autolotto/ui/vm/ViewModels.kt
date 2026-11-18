@@ -129,6 +129,7 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     /** 당겨서 새로고침: 당첨번호 + 잔액 + 구매회차 (+ 세션/로그인 복구). */
     fun refreshAll() {
+        if (container.isLoggingIn.value) return
         viewModelScope.launch {
             _isRefreshing.value = true
             try {

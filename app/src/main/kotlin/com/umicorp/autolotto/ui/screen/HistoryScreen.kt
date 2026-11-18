@@ -37,7 +37,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.pullToRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -156,19 +158,33 @@ fun HistoryScreen(modifier: Modifier = Modifier) {
                         onRetry = { vm.loadHistory() },
                     )
 
-                    else -> PullToRefreshBox(
-                        isRefreshing = loading,
-                        onRefresh = { vm.loadHistory() },
-                    ) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                    else -> {
+                        val pullToRefreshState = rememberPullToRefreshState()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pullToRefresh(
+                                    isRefreshing = loading,
+                                    state = pullToRefreshState,
+                                    enabled = !isLoggingIn,
+                                    onRefresh = { if (!isLoggingIn) vm.loadHistory() },
+                                ),
                         ) {
-                            itemsIndexed(purchases) { i, item -> HistoryCard(item, index = i) }
-                            if (canLoadMore) {
-                                item { LoadMoreButton(loading = loadingMore, onClick = vm::loadMore) }
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                itemsIndexed(purchases) { i, item -> HistoryCard(item, index = i) }
+                                if (canLoadMore) {
+                                    item { LoadMoreButton(loading = loadingMore, onClick = vm::loadMore) }
+                                }
                             }
+                            PullToRefreshDefaults.Indicator(
+                                modifier = Modifier.align(Alignment.TopCenter),
+                                isRefreshing = loading,
+                                state = pullToRefreshState,
+                            )
                         }
                     }
                 }
