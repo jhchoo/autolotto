@@ -82,7 +82,6 @@ import com.umicorp.autolotto.ui.util.formatNumber
 import com.umicorp.autolotto.ui.util.formatPurchaseSchedule
 import com.umicorp.autolotto.ui.util.launchActivitySafely
 import com.umicorp.autolotto.ui.vm.HomeViewModel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import java.time.DayOfWeek
 import java.time.Duration

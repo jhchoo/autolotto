@@ -10,7 +10,6 @@ import com.umicorp.autolotto.dhlottery.PurchaseResult
 import com.umicorp.autolotto.dhlottery.PurchaseService
 import com.umicorp.autolotto.TapSlotsOutcome
 import com.umicorp.autolotto.resolveSlotsForPurchase
-import com.umicorp.autolotto.splitSlots
 import com.umicorp.autolotto.tapSlotsOutcome
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -166,17 +165,9 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     val autoEnabled = container.autoEnabled
-    // 저장 완료 스낵바의 스케줄 문구용(원본 number_screen이 autoPurchaseDay/Hour/Minute 프로바이더를 읽음).
-    val autoPurchaseDay = container.autoPurchaseDay
-    val autoPurchaseHour = container.autoPurchaseHour
-    val autoPurchaseMinute = container.autoPurchaseMinute
 
     private val _games = MutableStateFlow<List<List<Int>?>>(List(5) { null })
     val games: StateFlow<List<List<Int>?>> = _games.asStateFlow()
-
-    /** 최초 로드 성공 전 저장 차단용 — 빈 초기 슬롯을 실데이터 위에 덮어쓰는 유실 방지(crosscheck R2). */
-    private val _gamesLoaded = MutableStateFlow(false)
-    val gamesLoaded: StateFlow<Boolean> = _gamesLoaded.asStateFlow()
 
     private val _gamesLoadFailed = MutableStateFlow(false)
     val gamesLoadFailed: StateFlow<Boolean> = _gamesLoadFailed.asStateFlow()
@@ -188,7 +179,6 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
             val loaded = container.loadManualGames()
             if (loaded != null) {
                 _games.value = loaded
-                _gamesLoaded.value = true
                 _gamesLoadFailed.value = false
             } else {
                 _gamesLoadFailed.value = true   // 기존 상태 유지 — 실패를 빈 값으로 위장 금지
@@ -196,10 +186,9 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
-    /** 게임 수는 설정된 슬롯 수로 자동 반영(원본 `_saveConfig`). 저장 성공 = 로드 상태 확정. */
+    /** 게임 수는 설정된 슬롯 수로 자동 반영(원본 `_saveConfig`). */
     fun saveConfig(games: List<List<Int>?>) {
         _games.value = games
-        _gamesLoaded.value = true
         _gamesLoadFailed.value = false
         viewModelScope.launch { container.saveManualGames(games) }
     }
@@ -239,13 +228,6 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
                 com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS,
             )
         )
-    }
-
-    /** 당첨 데이터가 없으면 최초 자동 수집 수행 */
-    suspend fun ensureWinningHistoryLoaded(context: android.content.Context) {
-        if (!com.umicorp.autolotto.data.LottoHistoryStore.hasData(context)) {
-            container.initWinningHistory(context)
-        }
     }
 
     /** 실시간 당첨 통계 분석 정보 조회 (recentCount 지정 시 최근 N회차 분석) */
@@ -635,18 +617,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     
     val isHistoryLoading: StateFlow<Boolean> = container.isHistoryLoading
 
-    /** 당첨 데이터가 없으면 최초 자동 수집 수행 */
-    suspend fun ensureWinningHistoryLoaded(context: android.content.Context) {
-        if (!com.umicorp.autolotto.data.LottoHistoryStore.hasData(context)) {
-            container.initWinningHistory(context)
-        }
-    }
-
-    /** N 부터 K 회차까지 당첨번호 조회 */
-    fun getWinningResultsFromRound(context: android.content.Context, startRound: Int = 1200): List<com.umicorp.autolotto.data.WinningResult> {
-        return com.umicorp.autolotto.data.LottoHistoryStore.getResultsFromRound(context, startRound)
-    }
-
     /** 회차 범위(startRound..endRound) 당첨번호 조회 */
     fun getWinningResultsRange(
         context: android.content.Context,
@@ -659,21 +629,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
     /** 최근 저장된 회차 번호 반환 */
     fun getLatestStoredRound(context: android.content.Context): Int {
         return com.umicorp.autolotto.data.LottoHistoryStore.getLatestStoredRound(context) ?: 1246
-    }
-
-    /** 검색어 및 페이징 기반 당첨번호 조회 */
-    fun getWinningResultsFiltered(
-        context: android.content.Context,
-        searchQuery: String? = null,
-        limit: Int = 10,
-        offset: Int = 0,
-    ): List<com.umicorp.autolotto.data.WinningResult> {
-        return com.umicorp.autolotto.data.LottoHistoryStore.getWinningResultsFiltered(context, searchQuery, limit, offset)
-    }
-
-    /** 저장된 전체 회차 개수 반환 */
-    fun getWinningHistoryTotalCount(context: android.content.Context): Int {
-        return com.umicorp.autolotto.data.LottoHistoryStore.getTotalCount(context)
     }
 
     /** 로그인 진행/결과 (스낵바·다이얼로그용). */
@@ -691,8 +646,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState.asStateFlow()
-
-    fun hasCredentials(): Boolean = container.store.hasCredentials()
 
     fun saveLastUserId(id: String) {
         if (id.isNotBlank()) {
@@ -726,21 +679,6 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
                 } else {
                     LoginState.ServerError(msg.takeIf { it.isNotBlank() })
                 }
-            }
-        }
-    }
-
-    fun loginWithSavedCredentials() {
-        viewModelScope.launch {
-            _loginState.value = LoginState.InProgress
-            _loginState.value = try {
-                val cred = container.store.getCredentials()
-                val u = cred.userId ?: throw IllegalArgumentException("No ID")
-                val p = cred.password ?: throw IllegalArgumentException("No PW")
-                container.login(u, p)
-                LoginState.Success
-            } catch (e: Exception) {
-                mapLoginException(e)
             }
         }
     }

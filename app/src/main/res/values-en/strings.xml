@@ -39,7 +39,6 @@
     <string name="autoNumberTitle">Auto Numbers</string>
     <string name="autoNumberSubtitle">Automatically purchased via DHLottery.</string>
     <string name="smartSlotTitle">Smart Numbers Mode</string>
-    <string name="smartSlotSubtitle">Generates numbers dynamically on each purchase using 1 of 3 smart strategies (Balanced/Hot/Cold).</string>
     <string name="smartSlotSubtitleAll">1 of 3 strategies is randomly chosen on purchase.</string>
     <string name="smartSlotSubtitleMulti">1 of %1$d chosen strategies is randomly selected on purchase.</string>
     <string name="smartSlotSubtitleSingle">Numbers are generated using the selected strategy.</string>
@@ -211,11 +210,8 @@
     <string name="smartGeneratorTitle">Smart Number Generator</string>
     <string name="smartGeneratorSubtitle">Recommends numbers using recent 100 rounds &amp; 6 statistical filters.</string>
     <string name="smartStrategyBalanced">⚖️ Balanced Recommender</string>
-    <string name="smartStrategyBalancedDesc">Balanced mix of 2 Hot + 2 Cold + 2 Normal</string>
     <string name="smartStrategyHot">🔥 Hot Numbers Focus</string>
-    <string name="smartStrategyHotDesc">Recommends numbers centered on frequent ones from recent 100 rounds (4)</string>
     <string name="smartStrategyCold">❄️ Cold Numbers Focus</string>
-    <string name="smartStrategyColdDesc">Recommends numbers centered on low-frequency ones from recent 100 rounds (4)</string>
     <string name="smartGuideTitle">Statistical Filtering Settings</string>
     <string name="smartFilterSumRange">Sum Range</string>
     <string name="smartFilterConsecutive">Consecutive Numbers</string>
@@ -235,9 +231,6 @@
     <string name="smartStrategyMixBalanced">Recent 100 rounds: 2 Hot + 2 Cold + 2 Normal</string>
     <string name="smartStrategyMixHot">Recent 100 rounds: 4 Hot + 1 Cold + 1 Normal</string>
     <string name="smartStrategyMixCold">Recent 100 rounds: 4 Cold + 1 Hot + 1 Normal</string>
-    <string name="smartGuideBalancedCondition">· Mix: 2 Hot + 2 Cold + 2 Normal (recent 100 rounds)\n· Sum Range: 115 ~ 175 (most common winning sum)\n· Odd:Even: 3:3 · 4:2 · 2:4 (balanced distribution)\n· Low:High: 3:3 · 4:2 · 2:4 (1~22 Low / 23~45 High)\n· Consecutive: Max 3 consecutive numbers\n· Same Last Digit: Max 3 numbers with identical last digit\n· Empty Ranges: 1~2 empty among 1s/10s/20s/30s/40s</string>
-    <string name="smartGuideHotCondition">· Mix: 4 Hot + 1 Cold + 1 Normal (recent 100 rounds)\n· Sum Range: 115 ~ 175 (most common winning sum)\n· Odd:Even: 3:3 · 4:2 · 2:4 (balanced distribution)\n· Low:High: 3:3 · 4:2 · 2:4 (1~22 Low / 23~45 High)\n· Consecutive: Max 3 consecutive numbers\n· Same Last Digit: Max 3 numbers with identical last digit\n· Empty Ranges: 1~2 empty among 1s/10s/20s/30s/40s</string>
-    <string name="smartGuideColdCondition">· Mix: 4 Cold + 1 Hot + 1 Normal (recent 100 rounds)\n· Sum Range: 115 ~ 175 (most common winning sum)\n· Odd:Even: 3:3 · 4:2 · 2:4 (balanced distribution)\n· Low:High: 3:3 · 4:2 · 2:4 (1~22 Low / 23~45 High)\n· Consecutive: Max 3 consecutive numbers\n· Same Last Digit: Max 3 numbers with identical last digit\n· Empty Ranges: 1~2 empty among 1s/10s/20s/30s/40s</string>
     <string name="smartAnalysisOddEven">Odd:Even %1$d:%2$d</string>
     <string name="smartAnalysisHighLow">Low:High %1$d:%2$d</string>
     <string name="smartAnalysisSum">Sum %1$d</string>
@@ -250,14 +243,10 @@
     <string name="smartApplyAllEmptySlots">Fill All Empty Game Slots</string>
     <string name="smartGenerateNew">🎲 Regenerate</string>
     <string name="smartHistoryRange">📊 Based on Rounds %1$d ~ %2$d</string>
-    <string name="smartTopFrequentTitle">Most Frequent TOP 5</string>
     <string name="sectionWinningHistory">🏆 Winning Numbers (Round 1200+)</string>
     <string name="winningHistoryTitle">Winning Numbers (1200 ~ Latest)</string>
     <string name="winningHistoryMax100Notice">Up to 100 rounds can be viewed at once</string>
     <string name="winningHistoryLoading">Fetching winning numbers…</string>
-    <string name="winningHistorySearchHint">Search Round (e.g. 1200, 1…)</string>
-    <string name="winningHistoryTotalCount">Showing %2$d of %1$d total rounds</string>
-    <string name="winningHistoryLoadMore">➕ Load More (+10)</string>
     <string name="buttonSearch">Search</string>
 
     <!-- Maintenance / Offline -->

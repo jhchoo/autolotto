@@ -1197,4 +1197,3 @@ fun WinningHistoryScreen(
 
 private const val URL_CHARGE = "https://www.dhlottery.co.kr/mypage/mndpChrg"
 private const val URL_OPENSOURCE = "https://github.com/umi-corp/autolotto"
-private const val URL_DONATION = "https://buymeacoffee.com/umicorp"

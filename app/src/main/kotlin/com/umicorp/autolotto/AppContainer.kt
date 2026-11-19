@@ -126,15 +126,7 @@ class AppContainer(context: Context) {
         store.setSlotSmartStrategies(slot, strategies)
     }
 
-    /** 호환용: 슬롯 0 기준 스마트 전략 */
-    val smartStrategies: StateFlow<Set<com.umicorp.autolotto.generator.StrategyType>> = MutableStateFlow(store.getSmartStrategies()).asStateFlow()
-
-    fun setSmartStrategies(strategies: Set<com.umicorp.autolotto.generator.StrategyType>) {
-        if (strategies.isEmpty()) return
-        for (i in 0 until 5) setSlotSmartStrategies(i, strategies)
-    }
-
-    /** 스마트 통계 필터링 조건 설정 */
+    /** 스마트 통계 필터링 조건 설정 — 앱 재실행 및 예약·즉시 구매 시 공용으로 참조. */
     private val _smartFilterSettings = MutableStateFlow(store.getSmartFilterSettings())
     val smartFilterSettings: StateFlow<com.umicorp.autolotto.generator.SmartFilterSettings> = _smartFilterSettings.asStateFlow()
 
@@ -822,7 +814,10 @@ val Context.appContainer: AppContainer
 fun splitSlots(slots: List<List<Int>?>): Pair<Int, List<List<Int>>> =
     slots.count { it?.isEmpty() == true } to slots.filterNotNull().filter { it.isNotEmpty() }
 
-/** 5슬롯(null=미설정 / 빈=자동 / [-1]=스마트 / 6수=수동) → (자동 게임 수, 수동 번호 목록). 구매 시 3가지 스마트 전략 중 무작위 선택 동적 평가. */
+/**
+ * 5슬롯(null=미설정 / 빈=자동 / [-1]=스마트 / 1..5수=반자동 / 6수=수동) → (자동 게임 수, 수동 번호 목록).
+ * 예약 자동구매와 즉시 구매가 공용으로 호출하며, 스마트 슬롯은 슬롯별 전략 선택 + 저장된 통계 필터 설정을 반영해 동적 생성한다.
+ */
 fun resolveSlotsForPurchase(
     slots: List<List<Int>?>,
     context: Context,

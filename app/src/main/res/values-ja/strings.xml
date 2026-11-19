@@ -39,7 +39,6 @@
     <string name="autoNumberTitle">自動番号</string>
     <string name="autoNumberSubtitle">同行宝くじで自動購入されます。</string>
     <string name="smartSlotTitle">スマート番号モード</string>
-    <string name="smartSlotSubtitle">購入するたびに3つのスマート戦略(バランス/頻出/未出現)の1つがランダム選択され自動生成されます。</string>
     <string name="smartSlotSubtitleAll">購入時に3つの戦略からランダムに選択されます。</string>
     <string name="smartSlotSubtitleMulti">購入時に選択した%1$dつの戦略からランダムに選択されます。</string>
     <string name="smartSlotSubtitleSingle">購入時に選択した戦略で自動生成されます。</string>
@@ -211,11 +210,8 @@
     <string name="smartGeneratorTitle">スマート番号推薦</string>
     <string name="smartGeneratorSubtitle">直近100回の出現頻度と6大統計パターンフィルタを適用します。</string>
     <string name="smartStrategyBalanced">⚖️ バランス推薦</string>
-    <string name="smartStrategyBalancedDesc">頻出2 + 未出現2 + 一般2のバランス組合せ</string>
     <string name="smartStrategyHot">🔥 頻出番号中心</string>
-    <string name="smartStrategyHotDesc">直近100回を基準に頻出番号(4個)を中心に推薦</string>
     <string name="smartStrategyCold">❄️ 長期未出現中心</string>
-    <string name="smartStrategyColdDesc">直近100回を基準に出現頻度が低い番号(4個)を中心に推薦</string>
     <string name="smartGuideTitle">統計フィルタ条件設定</string>
     <string name="smartFilterSumRange">合計範囲</string>
     <string name="smartFilterConsecutive">連続番号</string>
@@ -235,9 +231,6 @@
     <string name="smartStrategyMixBalanced">直近100回 頻出2個 + 未出現2個 + 一般2個</string>
     <string name="smartStrategyMixHot">直近100回 頻出4個 + 未出現1個 + 一般1個</string>
     <string name="smartStrategyMixCold">直近100回 未出現4個 + 頻出1個 + 一般1個</string>
-    <string name="smartGuideBalancedCondition">· 番号構成: 直近100回 頻出2個 + 未出現2個 + 一般2個\n· 合計範囲: 115 ~ 175 (最多当選区間)\n· 奇偶比率: 3:3 · 4:2 · 2:4 (バランス分布)\n· 低高比率: 3:3 · 4:2 · 2:4 (1~22低 / 23~45高)\n· 連続番号: 最大3連続以下 (4連続以上を除外)\n· 末尾同数: 最大3個以下 (同末尾4個以上を除外)\n· 全滅区間: 1·10·20·30·40番台のうち1~2区間除外</string>
-    <string name="smartGuideHotCondition">· 番号構成: 直近100回 頻出4個 + 未出現1個 + 一般1個\n· 合計範囲: 115 ~ 175 (最多当選区間)\n· 奇偶比率: 3:3 · 4:2 · 2:4 (バランス分布)\n· 低高比率: 3:3 · 4:2 · 2:4 (1~22低 / 23~45高)\n· 連続番号: 最大3連続以下 (4連続以上を除外)\n· 末尾同数: 最大3個以下 (同末尾4個以上を除外)\n· 全滅区間: 1·10·20·30·40番台のうち1~2区間除外</string>
-    <string name="smartGuideColdCondition">· 番号構成: 直近100回 未出現4個 + 頻出1個 + 一般1個\n· 合計範囲: 115 ~ 175 (最多当選区間)\n· 奇偶比率: 3:3 · 4:2 · 2:4 (バランス分布)\n· 低高比率: 3:3 · 4:2 · 2:4 (1~22低 / 23~45高)\n· 連続番号: 最大3連続以下 (4連続以上を除外)\n· 末尾同数: 最大3個以下 (同末尾4個以上を除外)\n· 全滅区間: 1·10·20·30·40番台のうち1~2区間除外</string>
     <string name="smartAnalysisOddEven">奇偶 %1$d:%2$d</string>
     <string name="smartAnalysisHighLow">低高 %1$d:%2$d</string>
     <string name="smartAnalysisSum">合計 %1$d</string>
@@ -250,14 +243,10 @@
     <string name="smartApplyAllEmptySlots">空きスロット全体を埋める</string>
     <string name="smartGenerateNew">🎲 再生成</string>
     <string name="smartHistoryRange">📊 第%1$d回 ~ 第%2$d回 分析基準</string>
-    <string name="smartTopFrequentTitle">最多出現番号 TOP 5</string>
     <string name="sectionWinningHistory">🏆 当選番号照会 (1200回 ~ 最新)</string>
     <string name="winningHistoryTitle">当選番号 (1200回 ~ 最新)</string>
     <string name="winningHistoryMax100Notice">一度に最大100件まで照会可能です</string>
     <string name="winningHistoryLoading">当選番号を取得中…</string>
-    <string name="winningHistorySearchHint">回次検索 (例: 1200, 1…)</string>
-    <string name="winningHistoryTotalCount">全%1$d回中 %2$d件表示</string>
-    <string name="winningHistoryLoadMore">➕ もっと見る (+10件)</string>
     <string name="buttonSearch">検索</string>
 
     <!-- メンテナンス / オフライン -->

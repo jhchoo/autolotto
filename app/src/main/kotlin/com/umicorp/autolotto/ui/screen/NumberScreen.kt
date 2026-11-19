@@ -56,13 +56,11 @@ import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.RestartAlt
-import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -1232,6 +1230,7 @@ private fun SmartGeneratorDialog(
 ) {
     val context = LocalContext.current
     val isHistoryLoading by vm.isHistoryLoading.collectAsState()
+    // 영속 저장된 사용자 필터링 조건을 초기값으로 복원
     val savedFilterSettings by vm.smartFilterSettings.collectAsState()
 
     var selectedStrategyType by remember { mutableStateOf(StrategyType.BALANCED) }
@@ -1240,6 +1239,7 @@ private fun SmartGeneratorDialog(
     var maxConsecutiveFilter by remember { mutableIntStateOf(savedFilterSettings.maxConsecutive) }
     var maxSameLastDigitFilter by remember { mutableIntStateOf(savedFilterSettings.maxSameLastDigit) }
 
+    /** 변경된 필터링 조건을 SecureStore에 즉시 영속 저장 (추천 팝업·자동구매·즉시구매 공용). */
     fun saveFilters(
         minSum: Int = minSumFilter,
         maxSum: Int = maxSumFilter,
@@ -1268,18 +1268,19 @@ private fun SmartGeneratorDialog(
             StrategyType.HOT_FOCUS -> LottoStrategy.HOT_FOCUS
             StrategyType.COLD_FOCUS -> LottoStrategy.COLD_FOCUS
         }
-        base.copy(
+        SmartFilterSettings(
             minSum = minSumFilter,
             maxSum = maxSumFilter,
             maxConsecutive = maxConsecutiveFilter,
             maxSameLastDigit = maxSameLastDigitFilter,
-        )
+        ).applyTo(base)
     }
 
     var generatedNumbers by remember { mutableStateOf(vm.generateSmartNumbers(context, currentStrategy)) }
     var isGuideExpanded by remember { mutableStateOf(false) }
     val dialogScrollState = rememberScrollState()
 
+    // 상세 필터 카드가 펼쳐지는 동안 늘어나는 maxValue를 프레임 단위로 추적해 맨 아래까지 부드럽게 스크롤
     LaunchedEffect(isGuideExpanded) {
         if (isGuideExpanded) {
             dialogScrollState.scroll {

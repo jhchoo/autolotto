@@ -18,10 +18,12 @@
 
 - **자동 구매** — 설정한 요일/시간에 자동으로 로또 구매 (최대 5게임)
 - **즉시 구매** — 번호 탭에서 저장한 게임을 바로 결제, 이미 구매한 회차는 자동 게임 추가 구매 (주간 5게임 한도는 서버가 검증)
-- **수동/자동 번호** — 게임별로 수동 번호 지정 또는 자동 생성 선택
-- **당첨 확인** — 매주 토요일 21:00 자동 당첨 확인 & 푸시 알림
+- **수동 · 반자동 · 자동 · 스마트 번호** — 게임 슬롯(A~E)별로 수동(6개), 반자동(1~5개 지정 후 나머지 랜덤), 완전 자동, 스마트 모드 선택
+- **스마트 번호 추천 & 통계 필터** — 최근 100회 당첨 번호 빈도 분석(균형/다출/미출 전략)과 6대 통계 필터(총합 범위 기본 115~175, 연속 번호, 동일 끝수, 저고 비율, 홀짝 비율, 전멸 구간 1~2개) 적용. 사용자 필터 설정은 암호화 저장되어 **예약 자동구매 및 즉시 구매에도 그대로 반영**
+- **당첨 확인 & 과거 이력 조회** — 매주 토요일 21:00 자동 당첨 확인 & 푸시 알림, 내장 당첨 데이터 + 최신 회차 동기화 기반 과거 당첨 번호 조회
 - **구매 기록** — 최근 3개월 자동 조회 + '더 보기'로 최대 1년, 게임별 번호·등수·당첨금 한눈에 확인
-- **보안 저장** — 계정 정보는 Android Keystore(EncryptedSharedPreferences) 암호화 저장
+- **점검/오프라인 대응** — 동행복권 서버 상태 확인을 통한 오프라인 모드 자동 전환 및 번호 설정·당첨 이력 조회 지원
+- **보안 저장** — 계정 정보 및 설정은 Android Keystore(EncryptedSharedPreferences) 암호화 저장
 - **다국어** — 한국어·영어·일본어, 설정에서 언어 선택 (기본: 시스템 언어)
 - **모던 디자인** — Material 3 Expressive 'Lucky Gloss', 네이티브 Jetpack Compose · 스프링 인터랙션
 
@@ -60,20 +62,28 @@
 ```
 app/src/main/kotlin/com/umicorp/autolotto/
 ├── MainActivity.kt              # 진입점 (Compose setContent)
-├── AppContainer.kt              # 앱 스코프 컴포지션 루트 (상태·서비스)
+├── AppContainer.kt              # 앱 스코프 컴포지션 루트 (상태·서비스·슬롯 동적 평가)
 ├── dhlottery/                   # 동행복권 역공학 세션
 │   ├── AuthService.kt           # RSA 로그인 (도메인별 쿠키)
 │   ├── PurchaseService.kt       # 로또 구매 (execBuy.do)
 │   ├── ResultService.kt         # 당첨번호 조회
 │   ├── HistoryService.kt        # 구매 내역
+│   ├── ServerHealthChecker.kt   # 서버 상태·점검 여부 확인
 │   ├── DhlotterySession.kt      # OkHttp 세션 (수동 리다이렉트)
 │   ├── DomainCookieStore.kt     # 도메인별 쿠키 저장소 (www↔ol 세션 공유)
 │   ├── ApiConstants.kt          # API 경로 상수 (테스트용 베이스 URL 분리)
 │   └── RsaCrypto.kt             # RSA PKCS1
 ├── data/
-│   ├── SecureStore.kt           # EncryptedSharedPreferences (+ Flutter 마이그레이션)
-│   ├── Purchase.kt
-│   └── WinningResult.kt
+│   ├── SecureStore.kt           # EncryptedSharedPreferences (계정·슬롯·스마트 필터 영속 저장)
+│   ├── LottoDatabase.kt         # SQLite 당첨 이력 DB
+│   ├── LottoHistoryStore.kt     # 당첨 이력 캐시·동기화 저장소
+│   ├── LottoHistoryCsvHelper.kt # 내장 CSV 시드 파서 (assets/winning_numbers.csv)
+│   ├── Purchase.kt              # 구매 내역 모델
+│   ├── PurchaseStore.kt         # 로컬 구매 내역 병합·캐시
+│   └── WinningResult.kt         # 당첨 결과 모델
+├── generator/                   # 스마트 번호 추천 · 통계 분석 엔진
+│   ├── LottoFrequencyAnalyzer.kt # 최근 100회 출현 빈도 분석 (Hot/Cold/Normal)
+│   └── SmartNumberGenerator.kt  # 전략별 번호 생성 · 6대 통계 필터 검증 · SmartFilterSettings
 ├── scheduler/                   # AlarmManager 자가연쇄 + WorkManager
 │   ├── AlarmScheduler.kt        # 알람 등록 (자동구매 1001 / 결과확인 1002)
 │   ├── AlarmTimes.kt            # 다음 알람 시각 순수 계산 (단위테스트 대상)
@@ -82,13 +92,15 @@ app/src/main/kotlin/com/umicorp/autolotto/
 │   ├── SchedulerReceivers.kt    # 부팅·앱 업데이트 시 알람 복원
 │   ├── ExactAlarmPermission.kt  # 정확 알람 권한 확인·설정 이동
 │   └── Notifications.kt         # 알림 (구매/당첨/잔액)
+├── util/
+│   └── Gates.kt                 # 1회성 실행/초기화 게이트 유틸
 └── ui/                          # Jetpack Compose · Material 3 Expressive
     ├── App.kt                   # 하단 pill 네비 + 4탭 페이저
     ├── SplashScreen.kt          # 스플래시 (자동 로그인)
-    ├── screen/                  # Home · Number · History · Settings
+    ├── screen/                  # Home · Number · History · Settings · Components
     ├── vm/                      # 화면별 ViewModel (상태 홀더)
     ├── theme/                   # Lucky Gloss 테마·색·모션
-    └── util/                    # 볼 색상·포맷 등 UI 헬퍼
+    └── util/                    # 볼 색상·포맷·런처 등 UI 헬퍼
 ```
 
 ## 🔐 보안

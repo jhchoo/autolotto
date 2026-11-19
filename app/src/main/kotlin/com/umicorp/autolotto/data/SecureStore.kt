@@ -187,9 +187,6 @@ class SecureStore(context: Context) {
     /** int.tryParse(val ?? '') ?? 0 와 동일. */
     fun getAutoGames(): Int = read(SecureKeys.AUTO_GAMES)?.toIntOrNull() ?: 0
 
-    /** 수동 번호 저장 (JSON 5슬롯 문자열). */
-    fun setManualNumbers(json: String) = putString(SecureKeys.MANUAL_NUMBERS, json)
-
     /** 게임 수 + 수동번호를 단일 commit으로 원자 저장 — 두 키 불일치 방지 (crosscheck R2). */
     fun setGamesConfig(games: Int, json: String) {
         prefs.edit()
@@ -289,17 +286,12 @@ class SecureStore(context: Context) {
         putString(key, str)
     }
 
-    fun getSmartStrategies(): Set<com.umicorp.autolotto.generator.StrategyType> = getSlotSmartStrategies(0)
-
-    fun setSmartStrategies(strategies: Set<com.umicorp.autolotto.generator.StrategyType>) {
-        if (strategies.isEmpty()) return
-        for (i in 0 until 5) setSlotSmartStrategies(i, strategies)
-        val str = strategies.joinToString(",") { it.name }
-        putString(SecureKeys.SMART_STRATEGIES, str)
-    }
-
     // === 스마트 통계 필터링 조건 설정 ===
 
+    /**
+     * 사용자가 지정한 통계 필터링 조건을 읽는다.
+     * 손상·비정상 범위 값이 저장돼 있으면 안전한 기본값(115~175, 최대 3연속, 동일 끝수 3개 이하)으로 보정한다.
+     */
     fun getSmartFilterSettings(): com.umicorp.autolotto.generator.SmartFilterSettings {
         val rawMin = read(SecureKeys.SMART_FILTER_MIN_SUM)?.toIntOrNull()
         val rawMax = read(SecureKeys.SMART_FILTER_MAX_SUM)?.toIntOrNull()
@@ -322,6 +314,7 @@ class SecureStore(context: Context) {
         )
     }
 
+    /** 4가지 통계 필터 설정을 단일 commit으로 원자 저장한다. */
     fun setSmartFilterSettings(settings: com.umicorp.autolotto.generator.SmartFilterSettings) {
         prefs.edit()
             .putString(SecureKeys.SMART_FILTER_MIN_SUM, settings.minSum.toString())

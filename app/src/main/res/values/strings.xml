@@ -44,7 +44,6 @@
     <string name="autoNumberTitle">자동 번호</string>
     <string name="autoNumberSubtitle">동행복권 자동으로 구매됩니다.</string>
     <string name="smartSlotTitle">스마트 번호 모드</string>
-    <string name="smartSlotSubtitle">매번 스마트 전략 무작위 선택됩니다.</string>
     <string name="smartSlotSubtitleAll">구매 시 3가지 전략 중 무작위 선택됩니다.</string>
     <string name="smartSlotSubtitleMulti">구매 시 선택한 %1$d가지 전략 중 무작위 선택됩니다.</string>
     <string name="smartSlotSubtitleSingle">구매 시 선택한 전략으로 자동 생성됩니다.</string>
@@ -217,11 +216,8 @@
     <string name="smartGeneratorTitle">스마트 번호 추천</string>
     <string name="smartGeneratorSubtitle">최근100회, 6가지 통계 패턴 필터링을 적용</string>
     <string name="smartStrategyBalanced">⚖️ 균형 추천</string>
-    <string name="smartStrategyBalancedDesc">자주 나온 번호 2 + 적게 나온 번호 2 + 일반 2 균형 조합</string>
     <string name="smartStrategyHot">🔥 자주 나온 번호 위주</string>
-    <string name="smartStrategyHotDesc">최근 100회를 기준으로 자주 나온 번호(4개) 중심 추천</string>
     <string name="smartStrategyCold">❄️ 장기 미출현 위주</string>
-    <string name="smartStrategyColdDesc">최근 100회를 기준으로 적게 나온 번호(4개) 중심 추천</string>
     <string name="smartGuideTitle">통계 필터링 조건 설정</string>
     <string name="smartFilterSumRange">총합 범위</string>
     <string name="smartFilterConsecutive">연속 번호</string>
@@ -241,9 +237,6 @@
     <string name="smartStrategyMixBalanced">최근 100회 자주 나온 번호 2 + 적게 나온 번호 2 + 일반 2</string>
     <string name="smartStrategyMixHot">최근 100회 최다 출현 번호 4 + 적게 나온 번호 1 + 일반 1</string>
     <string name="smartStrategyMixCold">최근 100회 적게 나온 번호 4 + 자주 나온 번호 1 + 일반 1</string>
-    <string name="smartGuideBalancedCondition">· 번호 구성: 최근 100회 자주 나온 번호 2 + 적게 나온 번호 2 + 일반 2\n· 총합 범위: 115 ~ 175 (당첨 다빈도 구간)\n· 홀짝 비율: 3:3 · 4:2 · 2:4 (극단적 홀/짝 배제)\n· 저고 비율: 3:3 · 4:2 · 2:4 (1~22 저 / 23~45 고)\n· 연속 번호: 최대 3연속 이하 (4연속 이상 번호 배제)\n· 동일 끝수: 끝자리 최대 3개 이하 (동일 끝자리 4개 이상 배제)\n· 전멸 구간: 1·10·20·30·40번대 중 멸구간 1~2개</string>
-    <string name="smartGuideHotCondition">· 번호 구성: 최근 100회 최다 출현 번호 4 + 적게 나온 번호 1 + 일반 1\n· 총합 범위: 115 ~ 175 (당첨 다빈도 구간)\n· 홀짝 비율: 3:3 · 4:2 · 2:4 (극단적 홀/짝 배제)\n· 저고 비율: 3:3 · 4:2 · 2:4 (1~22 저 / 23~45 고)\n· 연속 번호: 최대 3연속 이하 (4연속 이상 번호 배제)\n· 동일 끝수: 끝자리 최대 3개 이하 (동일 끝자리 4개 이상 배제)\n· 전멸 구간: 1·10·20·30·40번대 중 멸구간 1~2개</string>
-    <string name="smartGuideColdCondition">· 번호 구성: 최근 100회 적게 나온 번호 4 + 자주 나온 번호 1 + 일반 1\n· 총합 범위: 115 ~ 175 (당첨 다빈도 구간)\n· 홀짝 비율: 3:3 · 4:2 · 2:4 (극단적 홀/짝 배제)\n· 저고 비율: 3:3 · 4:2 · 2:4 (1~22 저 / 23~45 고)\n· 연속 번호: 최대 3연속 이하 (4연속 이상 번호 배제)\n· 동일 끝수: 끝자리 최대 3개 이하 (동일 끝자리 4개 이상 배제)\n· 전멸 구간: 1·10·20·30·40번대 중 멸구간 1~2개</string>
     <string name="smartAnalysisOddEven">홀짝 %1$d:%2$d</string>
     <string name="smartAnalysisHighLow">저고 %1$d:%2$d</string>
     <string name="smartAnalysisSum">합계 %1$d</string>
@@ -256,14 +249,10 @@
     <string name="smartApplyAllEmptySlots">빈 게임 슬롯 전체 채우기</string>
     <string name="smartGenerateNew">🎲 다시 생성</string>
     <string name="smartHistoryRange">📊 제 %1$d회 ~ 제 %2$d회 분석 기준</string>
-    <string name="smartTopFrequentTitle">최다 출현 번호 TOP 5</string>
     <string name="sectionWinningHistory">🏆 과거 이력 조회</string>
     <string name="winningHistoryTitle">당첨 번호</string>
     <string name="winningHistoryMax100Notice">최대 100개까지 한꺼번에 가능합니다</string>
     <string name="winningHistoryLoading">당첨 번호 수집 중…</string>
-    <string name="winningHistorySearchHint">회차 검색 (예: 1200, 1…)</string>
-    <string name="winningHistoryTotalCount">총 %1$d개 회차 중 %2$d개 표시</string>
-    <string name="winningHistoryLoadMore">➕ 더 보기 (+10개)</string>
     <string name="buttonSearch">검색</string>
 
     <!-- 점검 / 오프라인 모드 -->

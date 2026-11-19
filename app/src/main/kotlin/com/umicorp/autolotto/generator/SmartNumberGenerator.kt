@@ -12,7 +12,11 @@ enum class StrategyType {
 }
 
 /**
- * 로또 분석 전략 설정
+ * 로또 분석 전략 및 6대 통계 필터링 기준
+ *
+ * - 홀짝 / 저고 비율: 3:3, 4:2, 2:4 (극단적 편중 배제)
+ * - 전멸 구간: 1·10·20·30·40번대(5개 구간) 중 미출현 구간 1~2개
+ * - 동일 끝수 / 연속 번호 / 총합 범위: 사용자 설정([SmartFilterSettings])으로 조정 가능
  */
 data class LottoStrategy(
     val type: StrategyType = StrategyType.BALANCED,
@@ -52,7 +56,12 @@ data class LottoStrategy(
 }
 
 /**
- * 사용자가 설정한 스마트 번호 통계 필터 조건 (SecureStore 영속화 및 자동/즉시 구매 공용)
+ * 사용자가 설정한 스마트 번호 통계 필터 조건 (SecureStore 영속화 및 자동·즉시 구매 공용)
+ *
+ * @property minSum 번호 6개 총합 하한 (기본 115, 허용 110..180)
+ * @property maxSum 번호 6개 총합 상한 (기본 175, 허용 110..180)
+ * @property maxConsecutive 허용 최대 연속 번호 길이 (2 또는 3, 기본 3)
+ * @property maxSameLastDigit 허용 최대 동일 끝수 개수 (2 또는 3, 기본 3)
  */
 data class SmartFilterSettings(
     val minSum: Int = 115,
