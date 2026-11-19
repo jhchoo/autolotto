@@ -70,6 +70,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import com.umicorp.autolotto.generator.LottoStrategy
+import com.umicorp.autolotto.generator.SmartFilterSettings
 import com.umicorp.autolotto.generator.StrategyType
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
@@ -98,6 +99,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -124,6 +126,7 @@ import com.umicorp.autolotto.ui.vm.NumberViewModel
 import com.umicorp.autolotto.ui.vm.NumberViewModel.InstantState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.exp
 
 enum class SlotMode { AUTO, SMART, MANUAL }
 
@@ -1229,12 +1232,29 @@ private fun SmartGeneratorDialog(
 ) {
     val context = LocalContext.current
     val isHistoryLoading by vm.isHistoryLoading.collectAsState()
+    val savedFilterSettings by vm.smartFilterSettings.collectAsState()
 
     var selectedStrategyType by remember { mutableStateOf(StrategyType.BALANCED) }
-    var minSumFilter by remember { mutableIntStateOf(110) }
-    var maxSumFilter by remember { mutableIntStateOf(180) }
-    var maxConsecutiveFilter by remember { mutableIntStateOf(3) }
-    var maxSameLastDigitFilter by remember { mutableIntStateOf(3) }
+    var minSumFilter by remember { mutableIntStateOf(savedFilterSettings.minSum) }
+    var maxSumFilter by remember { mutableIntStateOf(savedFilterSettings.maxSum) }
+    var maxConsecutiveFilter by remember { mutableIntStateOf(savedFilterSettings.maxConsecutive) }
+    var maxSameLastDigitFilter by remember { mutableIntStateOf(savedFilterSettings.maxSameLastDigit) }
+
+    fun saveFilters(
+        minSum: Int = minSumFilter,
+        maxSum: Int = maxSumFilter,
+        maxConsecutive: Int = maxConsecutiveFilter,
+        maxSameLastDigit: Int = maxSameLastDigitFilter,
+    ) {
+        vm.updateSmartFilterSettings(
+            SmartFilterSettings(
+                minSum = minSum,
+                maxSum = maxSum,
+                maxConsecutive = maxConsecutive,
+                maxSameLastDigit = maxSameLastDigit,
+            ),
+        )
+    }
 
     val currentStrategy = remember(
         selectedStrategyType,
@@ -1258,6 +1278,44 @@ private fun SmartGeneratorDialog(
 
     var generatedNumbers by remember { mutableStateOf(vm.generateSmartNumbers(context, currentStrategy)) }
     var isGuideExpanded by remember { mutableStateOf(false) }
+    val dialogScrollState = rememberScrollState()
+
+    LaunchedEffect(isGuideExpanded) {
+        if (isGuideExpanded) {
+            dialogScrollState.scroll {
+                val startNanos = withFrameNanos { it }
+                var prevNanos = startNanos
+                var lastMax = dialogScrollState.maxValue
+                var lastMaxChangeNanos = startNanos
+                while (true) {
+                    val nowNanos = withFrameNanos { it }
+                    val dt = ((nowNanos - prevNanos) / 1_000_000_000f).coerceIn(0.001f, 0.05f)
+                    prevNanos = nowNanos
+
+                    val currentMax = dialogScrollState.maxValue
+                    if (currentMax != lastMax) {
+                        lastMax = currentMax
+                        lastMaxChangeNanos = nowNanos
+                    }
+
+                    val diff = currentMax - dialogScrollState.value.toFloat()
+                    if (diff > 0.5f) {
+                        val factor = (1f - exp(-12f * dt)).coerceIn(0f, 1f)
+                        val step = (diff * factor).coerceAtLeast(1f).coerceAtMost(diff)
+                        scrollBy(step)
+                    }
+
+                    val elapsedMs = (nowNanos - startNanos) / 1_000_000L
+                    val settledMs = (nowNanos - lastMaxChangeNanos) / 1_000_000L
+                    if ((elapsedMs >= 350L && settledMs >= 150L && diff <= 1.5f) || elapsedMs >= 1100L) {
+                        val remaining = dialogScrollState.maxValue - dialogScrollState.value.toFloat()
+                        if (remaining > 0f) scrollBy(remaining)
+                        break
+                    }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(isHistoryLoading) {
         if (!isHistoryLoading) {
@@ -1306,7 +1364,7 @@ private fun SmartGeneratorDialog(
                     )
                 }
             } else {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Column(modifier = Modifier.verticalScroll(dialogScrollState)) {
 
                     // 📊 분석 회차 기준 표기 및 최다 출현 번호 요약
                     Surface(
@@ -1419,6 +1477,7 @@ private fun SmartGeneratorDialog(
                 val sum = generatedNumbers.sum()
                 val maxConsecutive = com.umicorp.autolotto.generator.SmartNumberGenerator.getMaxConsecutive(generatedNumbers)
                 val maxSameLastDigit = com.umicorp.autolotto.generator.SmartNumberGenerator.getMaxSameLastDigit(generatedNumbers)
+                val missingDecades = com.umicorp.autolotto.generator.SmartNumberGenerator.getMissingDecadeCount(generatedNumbers)
 
                 CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                     FlowRow(
@@ -1426,24 +1485,6 @@ private fun SmartGeneratorDialog(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        AssistChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    stringResource(R.string.smartAnalysisOddEven, oddCount, evenCount),
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
-                            },
-                        )
-                        AssistChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    stringResource(R.string.smartAnalysisHighLow, lowCount, highCount),
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
-                            },
-                        )
                         AssistChip(
                             onClick = {},
                             label = {
@@ -1470,7 +1511,38 @@ private fun SmartGeneratorDialog(
                             onClick = {},
                             label = {
                                 Text(
-                                    stringResource(R.string.smartAnalysisLastDigit, maxSameLastDigit),
+                                    if (maxSameLastDigit > 1) {
+                                        stringResource(R.string.smartAnalysisLastDigit, maxSameLastDigit)
+                                    } else {
+                                        stringResource(R.string.smartAnalysisLastDigitNone)
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    stringResource(R.string.smartAnalysisHighLow, lowCount, highCount),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    stringResource(R.string.smartAnalysisOddEven, oddCount, evenCount),
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                        )
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(
+                                    stringResource(R.string.smartAnalysisMissingDecades, missingDecades),
                                     style = MaterialTheme.typography.labelSmall,
                                 )
                             },
@@ -1586,6 +1658,7 @@ private fun SmartGeneratorDialog(
                                             maxSumFilter = end
                                         }
                                     },
+                                    onValueChangeFinished = { saveFilters() },
                                     valueRange = 110f..180f,
                                     steps = 69, // 110부터 180까지 1단위 (총 71개 정수 중 내부 step 69개)
                                     modifier = Modifier.fillMaxWidth(),
@@ -1608,7 +1681,10 @@ private fun SmartGeneratorDialog(
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                         FilterChip(
                                             selected = maxConsecutiveFilter == 2,
-                                            onClick = { maxConsecutiveFilter = 2 },
+                                            onClick = {
+                                                maxConsecutiveFilter = 2
+                                                saveFilters(maxConsecutive = 2)
+                                            },
                                             label = {
                                                 Text(
                                                     stringResource(R.string.smartFilterConsecutiveOption2),
@@ -1618,7 +1694,10 @@ private fun SmartGeneratorDialog(
                                         )
                                         FilterChip(
                                             selected = maxConsecutiveFilter == 3,
-                                            onClick = { maxConsecutiveFilter = 3 },
+                                            onClick = {
+                                                maxConsecutiveFilter = 3
+                                                saveFilters(maxConsecutive = 3)
+                                            },
                                             label = {
                                                 Text(
                                                     stringResource(R.string.smartFilterConsecutiveOption3),
@@ -1646,7 +1725,10 @@ private fun SmartGeneratorDialog(
                                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                         FilterChip(
                                             selected = maxSameLastDigitFilter == 2,
-                                            onClick = { maxSameLastDigitFilter = 2 },
+                                            onClick = {
+                                                maxSameLastDigitFilter = 2
+                                                saveFilters(maxSameLastDigit = 2)
+                                            },
                                             label = {
                                                 Text(
                                                     stringResource(R.string.smartFilterLastDigitOption2),
@@ -1656,7 +1738,10 @@ private fun SmartGeneratorDialog(
                                         )
                                         FilterChip(
                                             selected = maxSameLastDigitFilter == 3,
-                                            onClick = { maxSameLastDigitFilter = 3 },
+                                            onClick = {
+                                                maxSameLastDigitFilter = 3
+                                                saveFilters(maxSameLastDigit = 3)
+                                            },
                                             label = {
                                                 Text(
                                                     stringResource(R.string.smartFilterLastDigitOption3),
@@ -1669,7 +1754,28 @@ private fun SmartGeneratorDialog(
 
                                 Spacer(Modifier.height(10.dp))
 
-                                // 4. 홀짝 비율 (고정 유지)
+                                // 4. 저고 비율 (고정 유지)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        stringResource(R.string.smartFilterHighLow),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        stringResource(R.string.smartFilterHighLowDesc),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+
+                                Spacer(Modifier.height(8.dp))
+
+                                // 5. 홀짝 비율 (고정 유지)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1690,20 +1796,20 @@ private fun SmartGeneratorDialog(
 
                                 Spacer(Modifier.height(8.dp))
 
-                                // 5. 저고 비율 (고정 유지)
+                                // 6. 전멸 구간 (고정 유지 - 설명만 표시)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
-                                        stringResource(R.string.smartFilterHighLow),
+                                        stringResource(R.string.smartFilterMissingDecades),
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface,
                                     )
                                     Text(
-                                        stringResource(R.string.smartFilterHighLowDesc),
+                                        stringResource(R.string.smartFilterMissingDecadesDesc),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -1718,10 +1824,11 @@ private fun SmartGeneratorDialog(
                                 ) {
                                     TextButton(
                                         onClick = {
-                                            minSumFilter = 110
-                                            maxSumFilter = 180
+                                            minSumFilter = 115
+                                            maxSumFilter = 175
                                             maxConsecutiveFilter = 3
                                             maxSameLastDigitFilter = 3
+                                            saveFilters(115, 175, 3, 3)
                                         },
                                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                                     ) {

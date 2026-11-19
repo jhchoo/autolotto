@@ -35,7 +35,7 @@ class SmartNumberGeneratorTest {
 
         val sum = numbers.sum()
         assertTrue(sum in strategy.minSum..strategy.maxSum)
-        assertTrue(sum in 110..180)
+        assertTrue(sum in 115..175)
     }
 
     @Test
@@ -43,6 +43,18 @@ class SmartNumberGeneratorTest {
         assertTrue(SmartNumberGenerator.isValidOddEvenRatio(listOf(1, 3, 5, 2, 4, 6))) // 3:3
         assertTrue(SmartNumberGenerator.isValidOddEvenRatio(listOf(1, 3, 5, 7, 2, 4))) // 4:2
         assertEquals(false, SmartNumberGenerator.isValidOddEvenRatio(listOf(1, 2, 4, 6, 8, 10))) // 1:5 -> false (default ratios 3:3, 4:2, 2:4)
+    }
+
+    @Test
+    fun isValidMissingDecades_validatesOneOrTwoMissingDecades() {
+        // 40번대 1개 구간 전멸 -> true
+        assertTrue(SmartNumberGenerator.isValidMissingDecades(listOf(1, 2, 10, 20, 30, 31)))
+        // 30번대, 40번대 2개 구간 전멸 -> true
+        assertTrue(SmartNumberGenerator.isValidMissingDecades(listOf(1, 2, 10, 11, 20, 21)))
+        // 전멸구간 0개 (모든 구간 포함) -> false
+        assertEquals(false, SmartNumberGenerator.isValidMissingDecades(listOf(1, 10, 20, 30, 40, 45)))
+        // 전멸구간 3개 (20, 30, 40번대 전멸) -> false
+        assertEquals(false, SmartNumberGenerator.isValidMissingDecades(listOf(1, 2, 3, 10, 11, 12)))
     }
 
     @Test
@@ -94,6 +106,11 @@ class SmartNumberGeneratorTest {
         assertEquals(1, SmartNumberGenerator.getMaxSameLastDigit(listOf(1, 2, 3, 4, 5, 6)))
         assertEquals(2, SmartNumberGenerator.getMaxSameLastDigit(listOf(1, 11, 3, 4, 5, 6)))
         assertEquals(3, SmartNumberGenerator.getMaxSameLastDigit(listOf(1, 11, 21, 4, 5, 6)))
+
+        assertEquals(0, SmartNumberGenerator.getMissingDecadeCount(listOf(1, 10, 20, 30, 40, 45)))
+        assertEquals(1, SmartNumberGenerator.getMissingDecadeCount(listOf(1, 2, 10, 20, 30, 35)))
+        assertEquals(2, SmartNumberGenerator.getMissingDecadeCount(listOf(1, 2, 10, 11, 20, 25)))
+        assertEquals(3, SmartNumberGenerator.getMissingDecadeCount(listOf(1, 2, 3, 10, 11, 12)))
     }
 
     @Test
@@ -112,5 +129,27 @@ class SmartNumberGeneratorTest {
         } else current + StrategyType.HOT_FOCUS
         assertEquals(1, next.size)
         assertTrue(StrategyType.HOT_FOCUS in next)
+    }
+
+    @Test
+    fun smartFilterSettings_applyToUpdatesStrategyConstraints() {
+        val custom = SmartFilterSettings(
+            minSum = 125,
+            maxSum = 155,
+            maxConsecutive = 2,
+            maxSameLastDigit = 2,
+        )
+        val strategy = custom.applyTo(LottoStrategy.HOT_FOCUS)
+        assertEquals(StrategyType.HOT_FOCUS, strategy.type)
+        assertEquals(125, strategy.minSum)
+        assertEquals(155, strategy.maxSum)
+        assertEquals(2, strategy.maxConsecutive)
+        assertEquals(2, strategy.maxSameLastDigit)
+
+        val numbers = SmartNumberGenerator.generateNumbers(strategy, random = Random(123))
+        assertTrue(SmartNumberGenerator.validateAllConstraints(numbers, strategy))
+        assertTrue(numbers.sum() in 125..155)
+        assertTrue(SmartNumberGenerator.getMaxConsecutive(numbers) <= 2)
+        assertTrue(SmartNumberGenerator.getMaxSameLastDigit(numbers) <= 2)
     }
 }

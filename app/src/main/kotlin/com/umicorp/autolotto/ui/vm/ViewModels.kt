@@ -208,6 +208,11 @@ class NumberViewModel(private val container: AppContainer) : ViewModel() {
 
     val isHistoryLoading: StateFlow<Boolean> = container.isHistoryLoading
     val slotSmartStrategies: StateFlow<Map<Int, Set<com.umicorp.autolotto.generator.StrategyType>>> = container.slotSmartStrategies
+    val smartFilterSettings: StateFlow<com.umicorp.autolotto.generator.SmartFilterSettings> = container.smartFilterSettings
+
+    fun updateSmartFilterSettings(settings: com.umicorp.autolotto.generator.SmartFilterSettings) {
+        container.setSmartFilterSettings(settings)
+    }
 
     /** 슬롯별 스마트 전략 체크 토글 (최소 1개 이상 유지 - 0개 방지) */
     fun toggleSlotSmartStrategy(slot: Int, type: com.umicorp.autolotto.generator.StrategyType) {

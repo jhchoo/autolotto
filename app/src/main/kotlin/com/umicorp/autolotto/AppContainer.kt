@@ -134,6 +134,15 @@ class AppContainer(context: Context) {
         for (i in 0 until 5) setSlotSmartStrategies(i, strategies)
     }
 
+    /** 스마트 통계 필터링 조건 설정 */
+    private val _smartFilterSettings = MutableStateFlow(store.getSmartFilterSettings())
+    val smartFilterSettings: StateFlow<com.umicorp.autolotto.generator.SmartFilterSettings> = _smartFilterSettings.asStateFlow()
+
+    fun setSmartFilterSettings(settings: com.umicorp.autolotto.generator.SmartFilterSettings) {
+        _smartFilterSettings.value = settings
+        store.setSmartFilterSettings(settings)
+    }
+
 
     // === 프로세스 스코프 하이드레이션 (crosscheck: rememberSaveable 복원으로 스플래시가
     //     스킵돼도 AppRoot가 재호출 — 성공 1회, 실패는 재시도 가능해야 한다) ===
@@ -185,6 +194,7 @@ class AppContainer(context: Context) {
             _balance.value = lastBalance
         }
         _slotSmartStrategies.value = (0 until 5).associateWith { store.getSlotSmartStrategies(it) }
+        _smartFilterSettings.value = store.getSmartFilterSettings()
         // 앱 실행마다 알람 재무장(자동구매 활성 시). 업데이트·강제종료·OEM 정리로 소실된 알람 복구 — 멱등.
         // 별도 runCatching: 알람 재무장 실패가 설정 하이드레이션 실패로 위장하지 않게.
         runCatching { scheduler.rescheduleAll() }
@@ -778,6 +788,7 @@ class AppContainer(context: Context) {
         _balanceAlertEnabled.value = false
         _balanceAlertThreshold.value = 5000
         _loggedInUserId.value = null
+        _smartFilterSettings.value = com.umicorp.autolotto.generator.SmartFilterSettings.DEFAULT
     }
 
     /** 화면별 ViewModel 팩토리(컴포지션 루트가 컨테이너 주입). */
@@ -820,6 +831,7 @@ fun resolveSlotsForPurchase(
     val manualNumbers = mutableListOf<List<Int>>()
 
     val store = SecureStore(context)
+    val filterSettings = store.getSmartFilterSettings()
     val history = com.umicorp.autolotto.data.LottoHistoryStore.getAllWinningResults(context)
 
     for ((index, s) in slots.withIndex()) {
@@ -829,16 +841,17 @@ fun resolveSlotsForPurchase(
             s.size == 1 && s[0] == -1 -> {
                 val slotTypes = store.getSlotSmartStrategies(index)
                 val strategies = slotTypes.map { type ->
-                    when (type) {
+                    val base = when (type) {
                         com.umicorp.autolotto.generator.StrategyType.BALANCED -> com.umicorp.autolotto.generator.LottoStrategy.BALANCED
                         com.umicorp.autolotto.generator.StrategyType.HOT_FOCUS -> com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS
                         com.umicorp.autolotto.generator.StrategyType.COLD_FOCUS -> com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS
                     }
+                    filterSettings.applyTo(base)
                 }.ifEmpty {
                     listOf(
-                        com.umicorp.autolotto.generator.LottoStrategy.BALANCED,
-                        com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS,
-                        com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS,
+                        filterSettings.applyTo(com.umicorp.autolotto.generator.LottoStrategy.BALANCED),
+                        filterSettings.applyTo(com.umicorp.autolotto.generator.LottoStrategy.HOT_FOCUS),
+                        filterSettings.applyTo(com.umicorp.autolotto.generator.LottoStrategy.COLD_FOCUS),
                     )
                 }
                 val randomStrategy = strategies.random()

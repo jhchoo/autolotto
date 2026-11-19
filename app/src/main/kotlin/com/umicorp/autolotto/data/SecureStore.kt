@@ -35,6 +35,12 @@ object SecureKeys {
     /** 스마트 슬롯 전략 선택 목록 (쉼표 구분: BALANCED,HOT_FOCUS,COLD_FOCUS) */
     const val SMART_STRATEGIES = "smart_strategies"
 
+    /** 스마트 통계 필터링 조건 설정 */
+    const val SMART_FILTER_MIN_SUM = "smart_filter_min_sum"
+    const val SMART_FILTER_MAX_SUM = "smart_filter_max_sum"
+    const val SMART_FILTER_MAX_CONSECUTIVE = "smart_filter_max_consecutive"
+    const val SMART_FILTER_MAX_SAME_LAST_DIGIT = "smart_filter_max_same_last_digit"
+
     /** 마지막으로 확인된 예치금 잔액 (연결 실패/재실행 시 임시 표시용) */
     const val LAST_KNOWN_BALANCE = "last_known_balance"
 
@@ -290,6 +296,39 @@ class SecureStore(context: Context) {
         for (i in 0 until 5) setSlotSmartStrategies(i, strategies)
         val str = strategies.joinToString(",") { it.name }
         putString(SecureKeys.SMART_STRATEGIES, str)
+    }
+
+    // === 스마트 통계 필터링 조건 설정 ===
+
+    fun getSmartFilterSettings(): com.umicorp.autolotto.generator.SmartFilterSettings {
+        val rawMin = read(SecureKeys.SMART_FILTER_MIN_SUM)?.toIntOrNull()
+        val rawMax = read(SecureKeys.SMART_FILTER_MAX_SUM)?.toIntOrNull()
+        val minSum = (rawMin ?: 115).coerceIn(110, 180)
+        val maxSum = (rawMax ?: 175).coerceIn(110, 180)
+        val (validMin, validMax) = if (maxSum - minSum >= 20) {
+            minSum to maxSum
+        } else {
+            115 to 175
+        }
+        val maxConsecutive = read(SecureKeys.SMART_FILTER_MAX_CONSECUTIVE)?.toIntOrNull()
+            ?.takeIf { it == 2 || it == 3 } ?: 3
+        val maxSameLastDigit = read(SecureKeys.SMART_FILTER_MAX_SAME_LAST_DIGIT)?.toIntOrNull()
+            ?.takeIf { it == 2 || it == 3 } ?: 3
+        return com.umicorp.autolotto.generator.SmartFilterSettings(
+            minSum = validMin,
+            maxSum = validMax,
+            maxConsecutive = maxConsecutive,
+            maxSameLastDigit = maxSameLastDigit,
+        )
+    }
+
+    fun setSmartFilterSettings(settings: com.umicorp.autolotto.generator.SmartFilterSettings) {
+        prefs.edit()
+            .putString(SecureKeys.SMART_FILTER_MIN_SUM, settings.minSum.toString())
+            .putString(SecureKeys.SMART_FILTER_MAX_SUM, settings.maxSum.toString())
+            .putString(SecureKeys.SMART_FILTER_MAX_CONSECUTIVE, settings.maxConsecutive.toString())
+            .putString(SecureKeys.SMART_FILTER_MAX_SAME_LAST_DIGIT, settings.maxSameLastDigit.toString())
+            .commit()
     }
 
     // === 전체 초기화 ===

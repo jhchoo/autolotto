@@ -21,10 +21,11 @@ data class LottoStrategy(
     val randomCount: Int = 2,
     val oddEvenRatios: Set<Pair<Int, Int>> = setOf(3 to 3, 4 to 2, 2 to 4),
     val highLowRatios: Set<Pair<Int, Int>> = setOf(3 to 3, 4 to 2, 2 to 4),
+    val missingDecadeCounts: Set<Int> = setOf(1, 2),
     val maxSameLastDigit: Int = 3,
     val maxConsecutive: Int = 3,
-    val minSum: Int = 110,
-    val maxSum: Int = 180,
+    val minSum: Int = 115,
+    val maxSum: Int = 175,
 ) {
     companion object {
         val BALANCED = LottoStrategy(
@@ -47,6 +48,27 @@ data class LottoStrategy(
             coldCount = 4,
             randomCount = 1,
         )
+    }
+}
+
+/**
+ * 사용자가 설정한 스마트 번호 통계 필터 조건 (SecureStore 영속화 및 자동/즉시 구매 공용)
+ */
+data class SmartFilterSettings(
+    val minSum: Int = 115,
+    val maxSum: Int = 175,
+    val maxConsecutive: Int = 3,
+    val maxSameLastDigit: Int = 3,
+) {
+    fun applyTo(strategy: LottoStrategy): LottoStrategy = strategy.copy(
+        minSum = minSum,
+        maxSum = maxSum,
+        maxConsecutive = maxConsecutive,
+        maxSameLastDigit = maxSameLastDigit,
+    )
+
+    companion object {
+        val DEFAULT = SmartFilterSettings()
     }
 }
 
@@ -143,6 +165,7 @@ object SmartNumberGenerator {
 
         return isValidOddEvenRatio(sorted, strategy.oddEvenRatios) &&
             isValidHighLowRatio(sorted, strategy.highLowRatios) &&
+            isValidMissingDecades(sorted, strategy.missingDecadeCounts) &&
             isValidLastDigits(sorted, strategy.maxSameLastDigit) &&
             isValidConsecutive(sorted, strategy.maxConsecutive) &&
             isValidSumRange(sorted, strategy.minSum, strategy.maxSum)
@@ -168,6 +191,14 @@ object SmartNumberGenerator {
         return (lowCount to highCount) in allowedRatios
     }
 
+    /** 전멸구간 개수 검증 (1~9, 10~19, 20~29, 30~39, 40~45 중 미출현 구간이 1~2개) */
+    fun isValidMissingDecades(
+        numbers: List<Int>,
+        allowedCounts: Set<Int> = setOf(1, 2),
+    ): Boolean {
+        return getMissingDecadeCount(numbers) in allowedCounts
+    }
+
     /** 끝자리 중복 검증 (동일 끝자리가 maxSame 이하) */
     fun isValidLastDigits(numbers: List<Int>, maxSame: Int = 3): Boolean {
         val lastDigitCounts = numbers.groupBy { it % 10 }
@@ -189,8 +220,8 @@ object SmartNumberGenerator {
         return true
     }
 
-    /** 총합 범위 검증 (기본 110~180) */
-    fun isValidSumRange(numbers: List<Int>, minSum: Int = 110, maxSum: Int = 180): Boolean {
+    /** 총합 범위 검증 (기본 115~175) */
+    fun isValidSumRange(numbers: List<Int>, minSum: Int = 115, maxSum: Int = 175): Boolean {
         val sum = numbers.sum()
         return sum in minSum..maxSum
     }
@@ -220,4 +251,12 @@ object SmartNumberGenerator {
         val lastDigitCounts = numbers.groupBy { it % 10 }
         return lastDigitCounts.values.maxOfOrNull { it.size } ?: 1
     }
+
+    /** 전멸구간(1번대/10번대/20번대/30번대/40번대 중 번호가 없는 구간) 개수 계산 */
+    fun getMissingDecadeCount(numbers: List<Int>): Int {
+        if (numbers.isEmpty()) return DECADE_RANGES.size
+        return DECADE_RANGES.count { range -> numbers.none { it in range } }
+    }
+
+    private val DECADE_RANGES = listOf(1..9, 10..19, 20..29, 30..39, 40..45)
 }
